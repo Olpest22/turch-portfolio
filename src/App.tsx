@@ -8,7 +8,6 @@ import { ThreeDMarquee } from '@/shared/c21-3d-marquee';
 import { TG_HANDLE, TG_URL } from './lib/contact';
 
 const Showcase3D = lazy(() => import('./portfolio/Showcase3D'));
-const LiquidChrome = lazy(() => import('@/shared/rb/LiquidChrome'));
 
 const WORKS = [
   {
@@ -58,6 +57,25 @@ function useInView<T extends Element>(margin = '0px') {
   return [ref, v] as const;
 }
 
+/** True once the browser has been idle after load: heavy widgets mount here, not mid-scroll. */
+function useIdleReady(delay = 1500) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let id = 0;
+    const t = window.setTimeout(() => {
+      const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+      if (ric) id = ric(() => setReady(true), { timeout: 2500 });
+      else setReady(true);
+    }, delay);
+    return () => {
+      window.clearTimeout(t);
+      const cic = (window as unknown as { cancelIdleCallback?: (n: number) => void }).cancelIdleCallback;
+      if (id && cic) cic(id);
+    };
+  }, [delay]);
+  return ready;
+}
+
 function TelegramIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
@@ -75,7 +93,7 @@ function Nav() {
     return () => window.removeEventListener('scroll', on);
   }, []);
   return (
-    <header className="fixed inset-x-0 top-0 z-40" style={{ background: solid ? 'rgb(10 9 8 / 0.82)' : 'transparent', backdropFilter: solid ? 'blur(10px)' : 'none', boxShadow: solid ? '0 1px 0 var(--c-line)' : 'none', transition: 'background var(--m-base) var(--m-ease), box-shadow var(--m-base) var(--m-ease)' }}>
+    <header className="fixed inset-x-0 top-0 z-40" style={{ background: solid ? 'rgb(10 9 8 / 0.94)' : 'transparent', boxShadow: solid ? '0 1px 0 var(--c-line)' : 'none', transition: 'background var(--m-base) var(--m-ease), box-shadow var(--m-base) var(--m-ease)' }}>
       <div className="container-x flex h-16 items-center justify-between gap-6 md:h-20">
         <a href="#top" className="ui-dim ui-focus mark-link font-mark text-[22px] tracking-wide text-ink" aria-label="TURCH, наверх">TURCH</a>
         <nav className="hidden items-center gap-8 md:flex" aria-label="Разделы">
@@ -102,16 +120,13 @@ function Hero() {
   return (
     <section ref={ref} id="top" className="relative flex min-h-[100svh] flex-col overflow-hidden" aria-label="Студия TURCH">
       <div className="absolute inset-0">
-        {visible || !shown ? (
-          <Suspense fallback={<div className="hero-fallback absolute inset-0" />}>
-            <div className="absolute inset-0" role="img" aria-label="Три сайта студии в 3D: ремонт квартир, натяжные потолки, мебель на заказ. Нажмите на экран, чтобы открыть сайт.">
-              <Showcase3D screens={WORKS.map((w) => ({ id: w.id, img: w.shot, href: w.href }))} onOpen={(h) => (window.location.href = h)} />
-            </div>
-          </Suspense>
-        ) : (
-          <div className="hero-fallback absolute inset-0" />
-        )}
+        <Suspense fallback={<div className="hero-fallback absolute inset-0" />}>
+          <div className="absolute inset-0" role="img" aria-label="Три сайта студии в 3D: ремонт квартир, натяжные потолки, мебель на заказ. Нажмите на экран, чтобы открыть сайт.">
+            <Showcase3D active={visible} screens={WORKS.map((w) => ({ id: w.id, img: w.shot, href: w.href }))} onOpen={(h) => (window.location.href = h)} />
+          </div>
+        </Suspense>
       </div>
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(120% 90% at 50% 40%, transparent 55%, rgb(10 9 8 / 0.7))' }} />
       <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-[55%]" style={{ background: 'linear-gradient(0deg, var(--c-bg) 12%, rgb(10 9 8 / 0.75) 45%, transparent)' }} />
       <div className="container-x pointer-events-none relative mt-auto pb-14 pt-28 md:pb-16">
         <div className="grid items-end gap-8 lg:grid-cols-12">
@@ -138,14 +153,21 @@ function Hero() {
 }
 
 function Marquee() {
+  const [ref, visible] = useInView<HTMLDivElement>('100px');
   const reduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const a = 'Сайты · 3D-сцены · Калькуляторы · Конфигураторы · Заявки в Telegram';
   const b = 'Ремонт квартир · Натяжные потолки · Мебель на заказ · Ваша ниша';
-  if (reduced) return <div className="rule py-8" aria-hidden="true"><p className="container-x font-display text-[40px] font-extrabold uppercase leading-tight text-ink-2">{a}</p></div>;
   const sep = <span aria-hidden="true" className="mx-6 inline-block h-3 w-3 translate-y-[-0.35em] rounded-full bg-accent align-middle md:mx-10" />;
   return (
-    <div className="rule overflow-hidden py-6 md:py-10" aria-hidden="true">
-      <ScrollVelocity texts={[a, b]} velocity={36} numCopies={4} separator={sep} fadeEdges outlineAlternate className="font-display font-extrabold uppercase text-ink" fontSize="clamp(40px, 6.5vw, 96px)" gap={0} />
+    <div ref={ref} className="rule relative overflow-hidden py-6 md:py-10" aria-hidden="true" style={{ minHeight: 'calc(clamp(40px, 6.5vw, 96px) * 2.3 + 48px)' }}>
+      {reduced ? (
+        <p className="container-x font-display text-[40px] font-extrabold uppercase leading-tight text-ink-2">{a}</p>
+      ) : (
+        // Only animate while on screen; edge fade is an overlay, not a mask (a mask over moving text re-rasterises every frame).
+        visible && <ScrollVelocity texts={[a, b]} velocity={36} numCopies={3} separator={sep} outlineAlternate className="font-display font-extrabold uppercase text-ink" fontSize="clamp(40px, 6.5vw, 96px)" gap={0} />
+      )}
+      <span className="pointer-events-none absolute inset-y-0 left-0 w-[12%]" style={{ background: 'linear-gradient(90deg, var(--c-bg), transparent)' }} />
+      <span className="pointer-events-none absolute inset-y-0 right-0 w-[12%]" style={{ background: 'linear-gradient(270deg, var(--c-bg), transparent)' }} />
     </div>
   );
 }
@@ -205,8 +227,15 @@ function Works() {
 }
 
 function Wall() {
+  const [ref, near] = useInView<HTMLElement>('1200px');
+  const idle = useIdleReady(2500);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    if (idle || near) setMounted(true);
+  }, [idle, near]);
+  const visible = mounted;
   return (
-    <section className="relative overflow-hidden py-24 md:py-32" aria-labelledby="wall-title">
+    <section ref={ref} className="relative overflow-hidden py-24 md:py-32" aria-labelledby="wall-title">
       <div className="container-x relative z-10">
         <div className="grid gap-6 md:grid-cols-12 md:items-end">
           <h2 id="wall-title" className="t-h2 md:col-span-7">Каждый экран продуман</h2>
@@ -214,7 +243,7 @@ function Wall() {
         </div>
       </div>
       <div className="relative mt-6">
-        <ThreeDMarquee images={MARQUEE_SHOTS} className="h-[420px] rounded-none md:h-[720px]" />
+        {visible ? <ThreeDMarquee images={MARQUEE_SHOTS} className="h-[420px] rounded-none md:h-[720px]" /> : <div className="h-[420px] md:h-[720px]" />}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: 'linear-gradient(180deg, var(--c-bg) 0%, transparent 18%, transparent 82%, var(--c-bg) 100%), linear-gradient(90deg, var(--c-bg) 0%, transparent 14%, transparent 86%, var(--c-bg) 100%)' }} />
       </div>
     </section>
@@ -275,16 +304,10 @@ function Process() {
 }
 
 function Contact() {
-  const [ref, visible] = useInView<HTMLElement>('200px');
   return (
-    <section ref={ref} id="contact" className="relative overflow-hidden py-28 md:py-40" aria-labelledby="contact-title">
-      <div className="absolute inset-0 opacity-60" aria-hidden="true">
-        {visible && (
-          <Suspense fallback={null}>
-            <LiquidChrome color={[0.32, 0.16, 0.08]} speed={0.25} amplitude={0.45} interactive />
-          </Suspense>
-        )}
-      </div>
+    <section id="contact" className="relative overflow-hidden py-28 md:py-40" aria-labelledby="contact-title">
+      {/* A frame rendered by React Bits LiquidChrome, used as a still: the live shader cost a full-screen raymarch per frame. */}
+      <div className="chrome-drift absolute inset-[-8%] opacity-60" aria-hidden="true" style={{ background: 'url(/img/liquid-chrome.webp) center / cover no-repeat' }} />
       <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: 'linear-gradient(90deg, var(--c-bg) 0%, rgb(10 9 8 / 0.7) 55%, rgb(10 9 8 / 0.2))' }} />
       <div className="container-x pointer-events-none relative">
         <h2 id="contact-title" className="t-h2 max-w-[16ch]">Расскажите о своём бизнесе</h2>

@@ -1,6 +1,6 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { MeshReflectorMaterial, RoundedBox } from '@react-three/drei';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 
 export type Texture = 'matte' | 'satin' | 'gloss';
@@ -17,17 +17,27 @@ const D = 6;
 const H = 3;
 
 function CameraRig() {
-  const { camera, pointer } = useThree();
+  const { camera, pointer, invalidate, gl } = useThree();
+  useEffect(() => {
+    const el = gl.domElement;
+    const on = () => invalidate();
+    el.addEventListener('pointermove', on);
+    window.addEventListener('resize', on);
+    return () => {
+      el.removeEventListener('pointermove', on);
+      window.removeEventListener('resize', on);
+    };
+  }, [gl, invalidate]);
   const target = useMemo(() => new THREE.Vector3(0, 1.75, -1.6), []);
   const reduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   useFrame((state, dt) => {
-    const t = state.clock.elapsedTime;
-    const sway = reduced ? 0 : Math.sin(t * 0.18) * 0.35;
-    const x = pointer.x * 0.9 + sway;
-    const y = 1.25 + pointer.y * 0.25;
-    camera.position.x += (x - camera.position.x) * Math.min(1, dt * 2.2);
-    camera.position.y += (y - camera.position.y) * Math.min(1, dt * 2.2);
+    const x = reduced ? 0 : pointer.x * 0.9;
+    const y = 1.25 + (reduced ? 0 : pointer.y * 0.25);
+    const k = Math.min(1, Math.max(dt, 1 / 60) * 3);
+    camera.position.x += (x - camera.position.x) * k;
+    camera.position.y += (y - camera.position.y) * k;
     camera.lookAt(target);
+    if (Math.abs(x - camera.position.x) + Math.abs(y - camera.position.y) > 0.002) state.invalidate();
   });
   return null;
 }
@@ -42,9 +52,9 @@ function Ceiling({ texture, color, light }: RoomProps) {
           <MeshReflectorMaterial
             color={color}
             mirror={isDark ? 0.85 : 0.7}
-            resolution={typeof window !== 'undefined' && window.innerWidth < 760 ? 384 : 1024}
-            blur={[60, 20]}
-            mixBlur={0.6}
+            resolution={typeof window !== 'undefined' && window.innerWidth < 760 ? 256 : 512}
+            blur={[0, 0]}
+            mixBlur={0}
             mixStrength={isDark ? 3.2 : 1.6}
             roughness={0.12}
             metalness={0.15}
@@ -108,9 +118,10 @@ function Ceiling({ texture, color, light }: RoomProps) {
                 <circleGeometry args={[0.07, 24]} />
                 <meshBasicMaterial color="#fff6e8" toneMapped={false} side={THREE.DoubleSide} />
               </mesh>
-              <pointLight position={[0, -0.25, 0]} intensity={1.6} distance={3.2} color="#ffe9c9" />
             </group>
           ))}
+          <pointLight position={[-1.5, -0.4, -0.2]} intensity={4} distance={5} color="#ffe9c9" />
+          <pointLight position={[1.5, -0.4, -0.2]} intensity={4} distance={5} color="#ffe9c9" />
         </group>
       )}
     </group>
@@ -199,8 +210,11 @@ function Furniture() {
 function Room(props: RoomProps) {
   const dim = props.light === 'none' ? 1 : 0.62;
   const ref = useRef<THREE.AmbientLight>(null);
-  useFrame((_, dt) => {
-    if (ref.current) ref.current.intensity += (0.55 * dim - ref.current.intensity) * Math.min(1, dt * 4);
+  useFrame((st, dt) => {
+    if (!ref.current) return;
+    const gap = 0.55 * dim - ref.current.intensity;
+    ref.current.intensity += gap * Math.min(1, Math.max(dt, 1 / 60) * 4);
+    if (Math.abs(gap) > 0.002) st.invalidate();
   });
   return (
     <>
@@ -251,7 +265,7 @@ function Room(props: RoomProps) {
 export default function Room3D(props: RoomProps) {
   return (
     <Canvas
-      frameloop={props.active === false ? 'never' : 'always'}
+      frameloop={props.active === false ? 'never' : 'demand'}
       dpr={typeof window !== 'undefined' && window.innerWidth < 760 ? [1, 1.25] : [1, 1.75]}
       camera={{ position: [0, 1.25, 4.3], fov: 62, near: 0.05, far: 40 }}
       gl={{ antialias: true, powerPreference: 'high-performance' }}

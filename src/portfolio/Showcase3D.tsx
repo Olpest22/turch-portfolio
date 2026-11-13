@@ -1,6 +1,5 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Environment, Lightformer, MeshReflectorMaterial, RoundedBox, useTexture } from '@react-three/drei';
-import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing';
+import { PerformanceMonitor, RoundedBox, useTexture } from '@react-three/drei';
 import { Suspense, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 
@@ -12,13 +11,17 @@ export interface Screen {
 
 const W = 3.2;
 const H = 2;
-const ORANGE = new THREE.Color('#ff6b1a');
+
+/* Performance notes: no MeshReflectorMaterial (renders the scene twice + blur passes) and no
+   post-processing (several full-screen passes). Reflections are mirrored copies of the screens
+   fading into the floor; glow is a soft radial sprite with additive blending. */
 
 function useLayout() {
   const { size } = useThree();
   const narrow = size.width / size.height < 0.9;
   return narrow
     ? {
+        narrow,
         cam: new THREE.Vector3(0, 2.2, 12.5),
         scale: 0.74,
         slots: [
@@ -28,6 +31,7 @@ function useLayout() {
         ],
       }
     : {
+        narrow,
         cam: new THREE.Vector3(0, 1.5, 9.4),
         scale: 1,
         slots: [
@@ -38,11 +42,41 @@ function useLayout() {
       };
 }
 
-function Panel({ s, slot, index, onOpen, hovered, setHovered, base = 1 }: { s: Screen; slot: { p: number[]; r: number }; index: number; base?: number; onOpen: (h: string) => void; hovered: string | null; setHovered: (v: string | null) => void }) {
+function makeGlow() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d')!;
+  const grd = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grd.addColorStop(0, 'rgba(255,120,40,1)');
+  grd.addColorStop(0.45, 'rgba(255,107,26,0.45)');
+  grd.addColorStop(1, 'rgba(255,107,26,0)');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, 128, 128);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+function makeFade() {
+  const c = document.createElement('canvas');
+  c.width = 4;
+  c.height = 128;
+  const g = c.getContext('2d')!;
+  const grd = g.createLinearGradient(0, 0, 0, 128);
+  grd.addColorStop(0, 'rgba(255,255,255,0.32)');
+  grd.addColorStop(0.55, 'rgba(255,255,255,0.05)');
+  grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, 4, 128);
+  return new THREE.CanvasTexture(c);
+}
+
+function Panel({ s, slot, index, onOpen, hovered, setHovered, base, glowTex, fadeTex }: { s: Screen; slot: { p: number[]; r: number }; index: number; base: number; onOpen: (h: string) => void; hovered: string | null; setHovered: (v: string | null) => void; glowTex: THREE.Texture; fadeTex: THREE.Texture }) {
   const tex = useTexture(s.img);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 8;
+  tex.anisotropy = 4;
   const g = useRef<THREE.Group>(null);
+  const mirror = useRef<THREE.Group>(null);
   const glow = useRef<THREE.MeshBasicMaterial>(null);
   const on = hovered === s.id;
   useFrame((st, dt) => {
@@ -55,7 +89,9 @@ function Panel({ s, slot, index, onOpen, hovered, setHovered, base = 1 }: { s: S
     el.rotation.y = slot.r + Math.sin(t * 0.35 + index) * 0.025;
     const k = (on ? 1.07 : 1) * base;
     el.scale.setScalar(THREE.MathUtils.damp(el.scale.x, k * e + 0.0001, 6, dt));
-    if (glow.current) glow.current.opacity = THREE.MathUtils.damp(glow.current.opacity, on ? 0.95 : 0.45, 6, dt);
+    // mirrored copy sits under the floor (y = 0): local offset = -2 * worldY / scale
+    if (mirror.current) mirror.current.position.y = (-2 * el.position.y) / el.scale.y;
+    if (glow.current) glow.current.opacity = THREE.MathUtils.damp(glow.current.opacity, on ? 1 : 0.6, 6, dt);
   });
   return (
     <group
@@ -74,32 +110,37 @@ function Panel({ s, slot, index, onOpen, hovered, setHovered, base = 1 }: { s: S
         onOpen(s.href);
       }}
     >
-      {/* glow behind */}
-      <mesh position={[0, 0, -0.09]}>
-        <planeGeometry args={[W + 0.16, H + 0.16]} />
-        <meshBasicMaterial ref={glow} color={ORANGE} toneMapped={false} transparent opacity={0.45} />
+      <mesh position={[0, 0, -0.12]}>
+        <planeGeometry args={[W * 1.45, H * 1.75]} />
+        <meshBasicMaterial ref={glow} map={glowTex} transparent opacity={0.6} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
       </mesh>
-      {/* chrome frame */}
-      <RoundedBox args={[W + 0.12, H + 0.12, 0.08]} radius={0.04} smoothness={4} position={[0, 0, -0.045]}>
-        <meshStandardMaterial color="#9a958f" metalness={1} roughness={0.22} />
+      <RoundedBox args={[W + 0.12, H + 0.12, 0.08]} radius={0.04} smoothness={2} position={[0, 0, -0.045]}>
+        <meshStandardMaterial color="#8d8882" metalness={0.55} roughness={0.32} />
       </RoundedBox>
-      {/* screen */}
       <mesh>
         <planeGeometry args={[W, H]} />
         <meshBasicMaterial map={tex} toneMapped={false} />
       </mesh>
+      {/* cheap reflection */}
+      <group ref={mirror} scale={[1, -1, 1]}>
+        <mesh>
+          <planeGeometry args={[W, H]} />
+          <meshBasicMaterial map={tex} alphaMap={fadeTex} transparent depthWrite={false} toneMapped={false} />
+        </mesh>
+      </group>
     </group>
   );
 }
 
 function Trails() {
   const tubes = useMemo(() => {
-    const mk = (pts: number[][], r: number) => new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(...p))), 160, r, 10, false);
-    return [
-      mk([[-9, 0.2, -4], [-4, 0.9, -3.2], [0, 0.4, -3.6], [4, 1.4, -3], [9, 2.6, -4.5]], 0.025),
-      mk([[-9, 3.6, -5], [-3, 3.1, -3.8], [1, 3.6, -4.2], [5, 2.5, -3.4], [9, 3.2, -5]], 0.018),
-      mk([[-9, 1.6, -6], [-2, 2.3, -5], [3, 0.8, -5.4], [9, 1.8, -6]], 0.03),
-    ];
+    const curves = [
+      [[-9, 0.2, -4], [-4, 0.9, -3.2], [0, 0.4, -3.6], [4, 1.4, -3], [9, 2.6, -4.5]],
+      [[-9, 3.6, -5], [-3, 3.1, -3.8], [1, 3.6, -4.2], [5, 2.5, -3.4], [9, 3.2, -5]],
+      [[-9, 1.6, -6], [-2, 2.3, -5], [3, 0.8, -5.4], [9, 1.8, -6]],
+    ].map((pts) => new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(...p))));
+    const r = [0.025, 0.018, 0.03];
+    return curves.map((c, k) => ({ core: new THREE.TubeGeometry(c, 90, r[k] * 1.3, 6, false) }));
   }, []);
   const g = useRef<THREE.Group>(null);
   useFrame((st) => {
@@ -107,19 +148,19 @@ function Trails() {
   });
   return (
     <group ref={g}>
-      {tubes.map((geo, k) => (
-        <mesh key={k} geometry={geo}>
-          <meshBasicMaterial color={k === 1 ? '#ffd0a6' : '#ff6b1a'} toneMapped={false} />
-        </mesh>
+      {tubes.map((t, k) => (
+        <group key={k}>
+          <mesh geometry={t.core}>
+            <meshBasicMaterial color={k === 1 ? '#ffd9b8' : '#ff8a3d'} toneMapped={false} />
+          </mesh>
+        </group>
       ))}
     </group>
   );
 }
 
-function Rig({ cam }: { cam: THREE.Vector3 }) {
+function Rig({ cam, narrow }: { cam: THREE.Vector3; narrow: boolean }) {
   const { camera, pointer } = useThree();
-  const { size } = useThree();
-  const narrow = size.width / size.height < 0.9;
   const target = useMemo(() => new THREE.Vector3(0, narrow ? 2.45 : 1.15, -1), [narrow]);
   const reduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   useFrame((st, dt) => {
@@ -127,10 +168,8 @@ function Rig({ cam }: { cam: THREE.Vector3 }) {
     const intro = reduced ? 1 : Math.min(1, t / 2.2);
     const e = 1 - Math.pow(1 - intro, 3);
     const z = cam.z + (1 - e) * 4;
-    const x = cam.x + pointer.x * 0.9;
-    const y = cam.y + pointer.y * 0.35;
-    camera.position.x = THREE.MathUtils.damp(camera.position.x, x, 3, dt);
-    camera.position.y = THREE.MathUtils.damp(camera.position.y, y, 3, dt);
+    camera.position.x = THREE.MathUtils.damp(camera.position.x, cam.x + pointer.x * 0.9, 3, dt);
+    camera.position.y = THREE.MathUtils.damp(camera.position.y, cam.y + pointer.y * 0.35, 3, dt);
     camera.position.z = THREE.MathUtils.damp(camera.position.z, z, 4, dt);
     camera.lookAt(target);
   });
@@ -138,52 +177,49 @@ function Rig({ cam }: { cam: THREE.Vector3 }) {
 }
 
 function Scene({ screens, onOpen }: { screens: Screen[]; onOpen: (h: string) => void }) {
-  const { cam, slots, scale } = useLayout();
+  const { cam, slots, scale, narrow } = useLayout();
   const [hovered, setHovered] = useState<string | null>(null);
+  const glowTex = useMemo(makeGlow, []);
+  const fadeTex = useMemo(makeFade, []);
   return (
     <>
       <color attach="background" args={['#0a0908']} />
       <fog attach="fog" args={['#0a0908', 9, 22]} />
-      <ambientLight intensity={0.25} />
+      <ambientLight intensity={0.35} />
       <pointLight position={[0, 4, 2]} intensity={18} color="#ffb27a" distance={14} />
-      <pointLight position={[-6, 1, -2]} intensity={10} color="#ff6b1a" distance={12} />
-      <pointLight position={[6, 1, -2]} intensity={10} color="#ff6b1a" distance={12} />
-      <Environment resolution={256} frames={1}>
-        <Lightformer form="rect" intensity={3} color="#ffffff" position={[0, 5, -6]} scale={[12, 2, 1]} />
-        <Lightformer form="rect" intensity={6} color="#ff7a2a" position={[-6, 1, 2]} rotation-y={Math.PI / 2} scale={[8, 1, 1]} />
-        <Lightformer form="rect" intensity={4} color="#ffd2ad" position={[6, 2, 1]} rotation-y={-Math.PI / 2} scale={[8, 1.5, 1]} />
-      </Environment>
+      <pointLight position={[-6, 1.5, 2]} intensity={14} color="#ff7a2a" distance={14} />
+      <pointLight position={[6, 2, 1]} intensity={10} color="#ffd2ad" distance={14} />
       <Suspense fallback={null}>
         {screens.map((s, i) => (
-          <Panel key={s.id} s={s} slot={slots[i]} index={i} base={scale} onOpen={onOpen} hovered={hovered} setHovered={setHovered} />
+          <Panel key={s.id} s={s} slot={slots[i]} index={i} base={scale} onOpen={onOpen} hovered={hovered} setHovered={setHovered} glowTex={glowTex} fadeTex={fadeTex} />
         ))}
       </Suspense>
       <Trails />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]}>
+      {/* dark glossy floor, semi-transparent so the mirrored screens show through */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
         <planeGeometry args={[60, 40]} />
-        <MeshReflectorMaterial resolution={1024} mirror={0.75} blur={[400, 120]} mixBlur={1.4} mixStrength={2.4} depthScale={1.1} minDepthThreshold={0.4} maxDepthThreshold={1.3} color="#0d0b0a" metalness={0.6} roughness={0.85} />
+        <meshStandardMaterial color="#0c0a09" metalness={0.6} roughness={0.5} transparent opacity={0.82} />
       </mesh>
-      <Rig cam={cam} />
-      <EffectComposer multisampling={0}>
-        <Bloom mipmapBlur luminanceThreshold={0.85} luminanceSmoothing={0.2} intensity={1.1} />
-        <Vignette eskil={false} offset={0.2} darkness={0.75} />
-      </EffectComposer>
+      <Rig cam={cam} narrow={narrow} />
     </>
   );
 }
 
-export default function Showcase3D({ screens, onOpen }: { screens: Screen[]; onOpen: (h: string) => void }) {
+export default function Showcase3D({ screens, onOpen, active = true }: { screens: Screen[]; onOpen: (h: string) => void; active?: boolean }) {
+  const [dpr, setDpr] = useState(() => Math.min(window.devicePixelRatio || 1, 1.25));
   return (
     <Canvas
-      dpr={[1, 1.6]}
+      frameloop={active ? 'always' : 'never'}
+      dpr={dpr}
       camera={{ position: [0, 1.75, 12], fov: 42, near: 0.1, far: 60 }}
-      gl={{ antialias: false, powerPreference: 'high-performance' }}
+      gl={{ antialias: false, powerPreference: 'high-performance', stencil: false, depth: true }}
       onCreated={({ gl }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping;
         gl.toneMappingExposure = 1.1;
       }}
       onPointerMissed={() => (document.body.style.cursor = '')}
     >
+      <PerformanceMonitor onDecline={() => setDpr((d) => Math.max(0.6, d - 0.25))} flipflops={4} />
       <Scene screens={screens} onOpen={onOpen} />
     </Canvas>
   );

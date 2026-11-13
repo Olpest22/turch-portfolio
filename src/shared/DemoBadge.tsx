@@ -6,10 +6,9 @@ export function DemoBadge({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
       href="/#works"
       className="ui-press ui-focus fixed bottom-4 left-4 z-[80] inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-[13px] font-medium no-underline shadow-lg"
       style={{
-        background: dark ? 'rgb(10 9 8 / 0.86)' : 'rgb(255 255 255 / 0.92)',
+        background: dark ? 'rgb(10 9 8 / 0.94)' : 'rgb(255 255 255 / 0.97)',
         color: dark ? '#ede9e3' : '#0d0c0b',
         boxShadow: dark ? '0 0 0 1px rgb(255 107 26 / 0.45), 0 10px 30px -10px rgb(0 0 0 / 0.6)' : '0 0 0 1px rgb(0 0 0 / 0.1), 0 10px 30px -12px rgb(0 0 0 / 0.35)',
-        backdropFilter: 'blur(10px)',
         fontFamily: "'Onest', system-ui, sans-serif",
       }}
     >

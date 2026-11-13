@@ -4,6 +4,7 @@ import Magnet from '@/shared/rb/Magnet';
 import { DemoBadge, fakeSubmit, formatPhone, rub, type LeadState } from '@/shared/DemoBadge';
 
 const IMG = (n: string) => `/img/mebel/${n}.webp`;
+const MD = (n: string) => `/img/mebel/${n}-md.webp`;
 const PHONE = '+7 (900) 000-00-00';
 
 function Logo({ size = 28 }: { size?: number }) {
@@ -36,7 +37,7 @@ function Nav() {
   const ease = 'cubic-bezier(0.16,1,0.3,1)';
   return (
     <>
-      <nav className="fixed inset-x-0 top-0 z-50 flex items-center justify-between bg-white/80 px-4 py-4 backdrop-blur-md sm:px-6 sm:py-5 md:px-10" aria-label="Главное меню">
+      <nav className="fixed inset-x-0 top-0 z-50 flex items-center justify-between bg-white/95 px-4 py-4 sm:px-6 sm:py-5 md:px-10" aria-label="Главное меню">
         <a href="#" className="ui-dim ui-focus flex items-center gap-2.5 text-[16px] font-semibold tracking-[-0.02em] text-ink no-underline" aria-label="Форма и шпон, наверх">
           <Logo />
           <span className="hidden sm:inline">Форма и шпон</span>
@@ -150,7 +151,7 @@ function Marquee() {
       <div ref={track} className={`marq flex w-max select-none gap-3 py-4 sm:gap-4 ${drag ? 'drag' : ''}`} style={{ willChange: 'transform' }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
         {[...STRIP, ...STRIP].map((n, k) => (
           <div key={k} className="h-80 w-60 shrink-0 overflow-hidden rounded-2xl sm:h-[32rem] sm:w-80">
-            <img src={IMG(n)} alt="" draggable={false} loading={k < 6 ? 'eager' : 'lazy'} className="pointer-events-none h-full w-full object-cover" />
+            <img src={MD(n)} alt="" draggable={false} loading={k < 6 ? 'eager' : 'lazy'} className="pointer-events-none h-full w-full object-cover" />
           </div>
         ))}
       </div>
@@ -210,7 +211,7 @@ function Rooms() {
         </div>
         <div className="relative overflow-hidden rounded-3xl bg-soft" style={{ aspectRatio: '4 / 4.6' }}>
           {ROOMS.map(([t, img], i) => (
-            <img key={t} src={IMG(img)} alt={t} loading="lazy" className={`room-img h-full w-full object-cover ${a === i ? 'on' : ''}`} />
+            <img key={t} src={MD(img)} alt={t} loading="lazy" className={`room-img h-full w-full object-cover ${a === i ? 'on' : ''}`} />
           ))}
           <div className="absolute bottom-4 left-4 rounded-full bg-white/90 px-4 py-2 text-[14px] font-medium backdrop-blur">{ROOMS[a][0]} · по вашим размерам</div>
         </div>
@@ -382,7 +383,7 @@ function Materials() {
           {STORY.map((s, k) => (
             <div key={s.tag} className="grid items-center gap-8 md:grid-cols-2 md:gap-16">
               <div className={`overflow-hidden rounded-3xl ${k % 2 ? 'md:order-2' : ''}`} style={{ aspectRatio: '5 / 4' }}>
-                <img src={IMG(s.img)} alt={s.h} loading="lazy" className="h-full w-full object-cover" />
+                <img src={MD(s.img)} alt={s.h} loading="lazy" className="h-full w-full object-cover" />
               </div>
               <div>
                 <div className="tag">{s.tag}</div>
@@ -405,14 +406,14 @@ function Materials() {
 /* ───────────── works (React Bits Masonry) ───────────── */
 function Works() {
   const items = [
-    { id: 1, img: IMG('closet-dark'), height: 620, title: 'Гардеробная с подсветкой', description: 'Графит и дуб · 9 м²' },
-    { id: 2, img: IMG('kitchen'), height: 440, title: 'Кухня с островом', description: 'Шпон ореха · камень' },
-    { id: 3, img: IMG('closet-white'), height: 700, title: 'Встроенный шкаф', description: 'Белый шёлк · 2,7 м' },
-    { id: 4, img: IMG('dining'), height: 720, title: 'Столовая', description: 'Стол из массива дуба' },
-    { id: 5, img: IMG('closet-room'), height: 460, title: 'Гардероб-комната', description: 'Ясень · 12 м²' },
-    { id: 6, img: IMG('living'), height: 480, title: 'Гостиная со стеллажом', description: 'Орех · латунь' },
-    { id: 7, img: IMG('closet-light'), height: 520, title: 'Шкаф в спальню', description: 'Дуб натуральный' },
-    { id: 8, img: IMG('table'), height: 420, title: 'Обеденная зона', description: 'Массив · масло-воск' },
+    { id: 1, img: MD('closet-dark'), height: 620, title: 'Гардеробная с подсветкой', description: 'Графит и дуб · 9 м²' },
+    { id: 2, img: MD('kitchen'), height: 440, title: 'Кухня с островом', description: 'Шпон ореха · камень' },
+    { id: 3, img: MD('closet-white'), height: 700, title: 'Встроенный шкаф', description: 'Белый шёлк · 2,7 м' },
+    { id: 4, img: MD('dining'), height: 720, title: 'Столовая', description: 'Стол из массива дуба' },
+    { id: 5, img: MD('closet-room'), height: 460, title: 'Гардероб-комната', description: 'Ясень · 12 м²' },
+    { id: 6, img: MD('living'), height: 480, title: 'Гостиная со стеллажом', description: 'Орех · латунь' },
+    { id: 7, img: MD('closet-light'), height: 520, title: 'Шкаф в спальню', description: 'Дуб натуральный' },
+    { id: 8, img: MD('table'), height: 420, title: 'Обеденная зона', description: 'Массив · масло-воск' },
   ];
   return (
     <section id="works" className="border-t border-[var(--line)] py-24 md:py-32">
@@ -425,7 +426,7 @@ function Works() {
           <p className="lead max-w-md">Каждая вещь — под конкретную комнату. Наведите на фото, чтобы узнать детали.</p>
         </div>
         <div className="mt-12">
-          <Masonry items={items} columns="auto" gap={16} radius={20} animateFrom="bottom" hoverEffect="zoom" captions="hover" blurToFocus />
+          <Masonry items={items} columns="auto" gap={16} radius={20} animateFrom="bottom" hoverEffect="zoom" captions="hover" blurToFocus={false} />
         </div>
       </div>
     </section>

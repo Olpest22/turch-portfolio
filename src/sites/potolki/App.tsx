@@ -5,6 +5,7 @@ import ShinyText from '@/shared/rb/ShinyText';
 
 const Room3D = lazy(() => import('./Room3D'));
 const IMG = (n: string) => `/img/potolki/${n}.webp`;
+const MD = (n: string) => `/img/potolki/${n}-md.webp`;
 const VIDEO = '/video/surface.mp4';
 const PHONE = '+7 (900) 000-00-00';
 
@@ -69,11 +70,15 @@ function ScrubHero() {
       });
     };
     // Frames are all-intra keyframes, so seeking lands exactly; easing currentTime turns a jumpy scrub into a smooth one.
+    let inView = true;
+    let lastPainted = -1;
     const frame = () => {
       if (!alive) return;
+      let moving = false;
       if (ok && duration) {
         const gap = seekTo - seekAt;
         if (Math.abs(gap) > 0.0008) {
+          moving = true;
           seekAt += gap * 0.115;
           if (v.readyState >= 2 && !v.seeking) {
             try {
@@ -84,9 +89,21 @@ function ScrubHero() {
           }
         }
       }
-      paint();
-      raf = requestAnimationFrame(frame);
+      if (progress !== lastPainted) {
+        paint();
+        lastPainted = progress;
+      }
+      // Sleep when the hero is off screen or the scrub has settled; scroll wakes it up.
+      raf = inView && (moving || !ok) ? requestAnimationFrame(frame) : 0;
     };
+    const wake = () => {
+      if (!raf && alive && inView) raf = requestAnimationFrame(frame);
+    };
+    const io = new IntersectionObserver(([e]) => {
+      inView = e.isIntersecting;
+      if (inView) wake();
+    });
+    if (track.current) io.observe(track.current);
     const start = () => {
       if (started) return;
       started = true;
@@ -94,6 +111,7 @@ function ScrubHero() {
       setReady(true);
       readScroll();
       seekAt = seekTo;
+      wake();
     };
     const attach = (src: string) => {
       if (attached) return;
@@ -158,17 +176,22 @@ function ScrubHero() {
       else v.pause();
     };
     ['touchstart', 'pointerdown', 'wheel', 'keydown'].forEach((ev) => window.addEventListener(ev, unlock, { once: true, passive: true }));
-    window.addEventListener('scroll', readScroll, { passive: true });
-    window.addEventListener('resize', readScroll);
+    const onScroll = () => {
+      readScroll();
+      wake();
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
     readScroll();
     paint();
     raf = requestAnimationFrame(frame);
     return () => {
       alive = false;
+      io.disconnect();
       cancelAnimationFrame(raf);
       ctrl.abort();
-      window.removeEventListener('scroll', readScroll);
-      window.removeEventListener('resize', readScroll);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
     };
   }, []);
 
@@ -419,7 +442,7 @@ function Works() {
           {WORKS.map(([img, t, m], k) => (
             <figure key={img} className={`gal m-0 overflow-hidden rounded-[22px] bg-paper-2 ${k === 0 ? 'md:row-span-2' : ''}`}>
               <div className="overflow-hidden" style={{ aspectRatio: k === 0 ? '4 / 5' : '16 / 9' }}>
-                <img src={IMG(img)} alt={t} loading="lazy" className="gal-img h-full w-full object-cover" />
+                <img src={k === 0 ? IMG(img) : MD(img)} alt={t} loading="lazy" className="gal-img h-full w-full object-cover" />
               </div>
               <figcaption className="flex items-baseline justify-between gap-4 px-5 py-4">
                 <span className="text-[17px] font-medium">{t}</span>

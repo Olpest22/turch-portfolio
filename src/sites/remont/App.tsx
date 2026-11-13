@@ -6,6 +6,7 @@ import { DemoBadge, fakeSubmit, formatPhone, rub, type LeadState } from '@/share
 
 const PHONE = '+7 (900) 000-00-00';
 const IMG = (n: string) => `/img/remont/${n}.webp`;
+const MD = (n: string) => `/img/remont/${n}-md.webp`;
 
 /* ───────────────────────── decode label (Monolith) ───────────────────────── */
 const GLYPHS = 'АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЭЮЯ0123456789/+';
@@ -270,10 +271,10 @@ function Services() {
       <div className="mt-14 h-[420px] md:h-[520px]">
         <FlowingMenu
           items={[
-            { text: 'Ремонт под ключ', image: IMG('hero'), marquee: 'от замера до клининга', meta: 'от 12 900 ₽/м²' },
-            { text: 'Дизайн-проект', image: IMG('living'), marquee: 'планировка · свет · мебель', meta: 'от 1 900 ₽/м²' },
-            { text: 'Черновые работы', image: IMG('raw'), marquee: 'электрика · стяжка · штукатурка', meta: 'от 6 400 ₽/м²' },
-            { text: 'Санузел и кухня', image: IMG('kitchen'), marquee: 'плитка · сантехника · фартук', meta: 'от 290 000 ₽' },
+            { text: 'Ремонт под ключ', image: MD('hero'), marquee: 'от замера до клининга', meta: 'от 12 900 ₽/м²' },
+            { text: 'Дизайн-проект', image: MD('living'), marquee: 'планировка · свет · мебель', meta: 'от 1 900 ₽/м²' },
+            { text: 'Черновые работы', image: MD('raw'), marquee: 'электрика · стяжка · штукатурка', meta: 'от 6 400 ₽/м²' },
+            { text: 'Санузел и кухня', image: MD('kitchen'), marquee: 'плитка · сантехника · фартук', meta: 'от 290 000 ₽' },
           ]}
           textColor="#f2f4f8"
           bgColor="#04070d"
@@ -435,7 +436,7 @@ function Works() {
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           {list.map((w, k) => (
             <article key={w.title} tabIndex={0} className={`proj-card ui-focus relative overflow-hidden bg-bg-3 ${k === 0 && list.length > 2 ? 'md:col-span-2 md:row-span-2' : ''}`} style={{ aspectRatio: k === 0 && list.length > 2 ? undefined : '4 / 3.4', minHeight: 280 }}>
-              <img src={IMG(w.img)} alt={w.title} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+              <img src={k === 0 && list.length > 2 ? IMG(w.img) : MD(w.img)} alt={w.title} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
               <div className="meta absolute inset-x-0 bottom-0 p-5" style={{ background: 'linear-gradient(0deg, rgba(4,7,13,.96), rgba(4,7,13,.82))' }}>
                 <div className="flex h-[24px] items-center justify-between gap-3">
                   <h3 className="truncate text-[18px] font-bold">{w.title}</h3>
@@ -489,7 +490,7 @@ function Steps() {
         <div className="lg:col-span-5">
           <div className="lg:sticky lg:top-24">
             <SectionHead label="Этапы" title="От замера до ключей" full />
-            <img src={IMG('worker')} alt="Мастер выравнивает стену" loading="lazy" className="mt-10 hidden aspect-[4/5] w-full object-cover lg:block" style={{ clipPath: 'polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 22px 100%, 0 calc(100% - 22px))' }} />
+            <img src={MD('worker')} alt="Мастер выравнивает стену" loading="lazy" className="mt-10 hidden aspect-[4/5] w-full object-cover lg:block" style={{ clipPath: 'polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 22px 100%, 0 calc(100% - 22px))' }} />
           </div>
         </div>
         <ol ref={box} className="relative lg:col-span-7">
@@ -568,7 +569,7 @@ function Lead() {
   };
   return (
     <section id="lead" className="relative overflow-hidden border-t border-[var(--line)] py-24 md:py-32">
-      <img src={IMG('dining')} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover opacity-25" loading="lazy" />
+      <img src={MD('dining')} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover opacity-25" loading="lazy" />
       <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, #04070d 30%, rgba(4,7,13,.75))' }} />
       <div className="wrap relative grid gap-16 lg:grid-cols-12">
         <div className="lg:col-span-6">

@@ -107,15 +107,16 @@ body {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: chrome-sheen 7s var(--m-ease) 1.2s infinite;
+  animation: chrome-sheen 2.4s var(--m-ease) 1.4s 1 both; /* once: an infinite background-position animation repaints text every frame */
 }
 .chrome-words { display: block; }
 .chrome-words:has(.split-word) { background: none; animation: none; color: var(--c-text); }
 .chrome-words .split-word { padding-bottom: 0.06em; }
 @keyframes chrome-sheen {
   0% { background-position: 120% 0, 0 0; }
-  35%, 100% { background-position: -40% 0, 0 0; }
+  100% { background-position: -40% 0, 0 0; }
 }
+.mark-link:hover .chrome, a:hover > .chrome { animation: chrome-sheen 1.2s var(--m-ease) 1 both; }
 @media (prefers-reduced-motion: reduce) {
   .chrome, .chrome-words .split-word { animation: none; }
 }
@@ -211,3 +212,8 @@ canvas[data-fallback] { background: radial-gradient(120% 80% at 80% 70%, rgb(255
   letter-spacing: -0.01em;
 }
 .hero-fallback { background: radial-gradient(80% 60% at 50% 35%, rgb(255 107 26 / 0.18), transparent 70%), var(--c-bg); }
+
+/* Liquid chrome is rendered once (speed 0); the layer itself drifts on the compositor. */
+.chrome-drift { animation: chrome-drift 22s ease-in-out infinite alternate; will-change: transform; }
+@keyframes chrome-drift { from { transform: translate3d(-3%, 0, 0) scale(1.04) rotate(-1deg); } to { transform: translate3d(3%, -2%, 0) scale(1.1) rotate(1.5deg); } }
+@media (prefers-reduced-motion: reduce) { .chrome-drift { animation: none; } }
