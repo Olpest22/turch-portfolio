@@ -1,5 +1,7 @@
 @import 'tailwindcss';
-@import './kit/interaction-kit.css';
+@import './shared/kit/interaction-kit.css';
+
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --c-bg: #0a0908;
@@ -200,3 +202,12 @@ canvas[data-fallback] { background: radial-gradient(120% 80% at 80% 70%, rgb(255
 .nav-link:hover { color: var(--c-text); }
 .row-hover:hover { background-color: rgb(237 233 227 / 0.04); }
 .mark-link:hover { color: var(--c-accent); }
+
+.t-display-hero {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: clamp(52px, 7.4vw, 124px);
+  line-height: 0.9;
+  letter-spacing: -0.01em;
+}
+.hero-fallback { background: radial-gradient(80% 60% at 50% 35%, rgb(255 107 26 / 0.18), transparent 70%), var(--c-bg); }

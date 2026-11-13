@@ -1,0 +1,69 @@
+@import 'tailwindcss';
+@import '../../shared/kit/interaction-kit.css';
+
+/* Design language: MotionSites "Custom Spaces" — pure white, Geist, neutral-900 pills, curved white
+   masks over a draggable inertial image marquee. Structure from websiteprompts.ai "Furniture Store". */
+:root {
+  --ink: #1a1a1a;
+  --ink-2: #5c5c5c;
+  --ink-3: #8a8a8a;
+  --line: #e7e5e2;
+  --soft: #f5f4f2;
+  --walnut: #6b4f38;
+  --e: cubic-bezier(0.16, 1, 0.3, 1);
+  --ui-focus-ring: #1a1a1a;
+  color-scheme: light;
+  accent-color: #1a1a1a;
+  interpolate-size: allow-keywords;
+}
+@theme {
+  --color-ink: #1a1a1a;
+  --color-ink-2: #5c5c5c;
+  --color-ink-3: #8a8a8a;
+  --color-soft: #f5f4f2;
+  --color-walnut: #6b4f38;
+  --font-geist: 'Geist', system-ui, sans-serif;
+}
+html { background: #fff; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: #fff; color: var(--ink); font-family: 'Geist', system-ui, sans-serif; -webkit-font-smoothing: antialiased; font-size: 17px; line-height: 1.6; }
+::selection { background: #1a1a1a; color: #fff; }
+
+.wrap { width: 100%; max-width: 1280px; margin-inline: auto; padding-inline: 24px; }
+@media (max-width: 639px) { .wrap { padding-inline: 16px; } }
+
+.h2 { font-weight: 600; letter-spacing: -0.035em; line-height: 1.04; font-size: clamp(34px, 4.4vw, 60px); text-wrap: balance; }
+.lead { font-size: clamp(17px, 1.4vw, 20px); line-height: 1.6; color: var(--ink-2); }
+.tag { font-size: 13px; font-weight: 500; color: var(--ink-3); }
+
+.pill { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; background: #1a1a1a; color: #fff; font: 500 15px 'Geist', sans-serif; padding: 0 22px; height: 46px; text-decoration: none; border: 0; cursor: pointer; white-space: nowrap; }
+.pill:hover { background: #333; }
+.pill-o { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--line); }
+.pill-o:hover { background: var(--soft); }
+.ulink { color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 5px; text-decoration-color: #b3b3b3; transition: text-decoration-color 0.25s; }
+.ulink:hover { text-decoration-color: var(--ink); }
+
+.marq { cursor: grab; touch-action: pan-y; }
+.marq.drag { cursor: grabbing; }
+
+.room-img { position: absolute; inset: 0; opacity: 0; transform: scale(1.04); transition: opacity 0.7s var(--e), transform 1.2s var(--e); }
+.room-img.on { opacity: 1; transform: none; }
+
+.drawer-link { transition: opacity 0.5s var(--e), transform 0.5s var(--e); }
+
+.field { width: 100%; height: 54px; padding: 0 18px; border: 0; border-radius: 14px; background: var(--soft); color: var(--ink); font: 400 16px 'Geist', sans-serif; outline: none; box-shadow: inset 0 0 0 1px transparent; transition: box-shadow 0.2s, background 0.2s; }
+.field:focus { background: #fff; box-shadow: inset 0 0 0 1.5px var(--ink); }
+.field[aria-invalid='true'] { box-shadow: inset 0 0 0 1.5px #c0392b; }
+
+input[type='range'].rng { -webkit-appearance: none; appearance: none; width: 100%; height: 30px; background: transparent; cursor: pointer; }
+input[type='range'].rng::-webkit-slider-runnable-track { height: 4px; border-radius: 4px; background: linear-gradient(90deg, var(--ink) var(--p, 50%), var(--line) var(--p, 50%)); }
+input[type='range'].rng::-moz-range-track { height: 4px; background: var(--line); border-radius: 4px; }
+input[type='range'].rng::-moz-range-progress { height: 4px; background: var(--ink); border-radius: 4px; }
+input[type='range'].rng::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; margin-top: -10px; border-radius: 50%; background: #fff; border: 0; box-shadow: 0 0 0 1.5px var(--ink), 0 4px 12px rgba(0,0,0,.15); transition: transform .2s var(--e); }
+input[type='range'].rng::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 0; box-shadow: 0 0 0 1.5px var(--ink); }
+input[type='range'].rng:active::-webkit-slider-thumb { transform: scale(1.12); }
+
+.door { transition: transform 0.7s var(--e), filter 0.4s; transform-origin: left center; }
+.wardrobe.open .door { transform: perspective(900px) rotateY(-62deg); }
+.wardrobe.open .door.r { transform-origin: right center; transform: perspective(900px) rotateY(62deg); }
+@media (prefers-reduced-motion: reduce) { .door { transition: none; } }

@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
-import './kit/interaction-kit.js';
+import '@/shared/kit/interaction-kit.js';
 import App from './App';
 
 declare global {
