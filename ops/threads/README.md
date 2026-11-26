@@ -41,11 +41,7 @@
 
 ## Окружение
 
-Скрипт подготовки облачного окружения ставит `th` при каждом новом контейнере, на проверенной версии:
-
-```bash
-D=$(mktemp -d) && git -C "$D" init -q && git -C "$D" fetch -q --depth 1 https://github.com/Egor01KKK/threads-content-research-agent 981cccd2eb53d44f46cc5675b2388c8c7a6ad758 && git -C "$D" checkout -q FETCH_HEAD && (cd "$D" && GOTOOLCHAIN=auto go build -o /usr/local/bin/th ./cmd/th)
-```
+Программу `th` задача поиска ставит сама при первом запуске в новом контейнере: `bash ops/threads/install-th.sh`. Скрипт собирает её из исходников на проверенной версии (коммит зафиксирован в скрипте). На своём компьютере нужен Go: https://go.dev/dl
 
 ## Ограничения
 
