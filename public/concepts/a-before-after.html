@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TURCH — концепция A: «До / После»</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Commissioner:wght@600;800&family=Onest:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink: #0e0d0c; --ink-2: #191715; --tx: #f4f1ea; --tx-2: rgba(244,241,234,.66); --accent: #ff6b1a; --accent-ink: #1a0b02; --ease: cubic-bezier(.2,.7,.2,1); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--ink); color: var(--tx); font-family: 'Onest', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .page { min-height: 100svh; display: grid; grid-template-rows: auto 1fr; }
+  header { display: flex; justify-content: space-between; align-items: center; padding: 22px clamp(16px, 4vw, 56px); }
+  .mark { font: 800 20px 'Commissioner'; letter-spacing: .1em; }
+  .tg { font: 600 15px 'Onest'; color: var(--accent-ink); background: var(--accent); text-decoration: none; padding: 11px 18px; border-radius: 999px; }
+  .hero { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: clamp(24px, 3.5vw, 56px); align-items: center; padding: 0 clamp(16px, 4vw, 56px) clamp(24px, 4vh, 48px); }
+  h1 { margin: 0; font: 800 clamp(40px, 4.6vw, 76px)/.96 'Commissioner'; letter-spacing: -.035em; }
+  h1 span { color: var(--accent); }
+  .lead { margin: 20px 0 0; color: var(--tx-2); font-size: clamp(16px, 1.25vw, 18px); line-height: 1.55; max-width: 26rem; }
+  .cta { margin-top: 28px; display: inline-flex; align-items: center; height: 54px; padding: 0 26px; border-radius: 14px; background: var(--accent); color: var(--accent-ink); font: 600 16px 'Onest'; text-decoration: none; }
+  .hint { margin-top: 22px; display: flex; align-items: center; gap: 10px; color: var(--tx-2); font-size: 14px; }
+  .hint kbd { font: 600 12px 'Onest'; padding: 3px 8px; border-radius: 6px; background: var(--ink-2); box-shadow: inset 0 0 0 1px rgba(244,241,234,.18); }
+
+  /* comparison window: both sides share one canvas size and one scale */
+  .win { position: relative; width: 100%; aspect-ratio: var(--ar); border-radius: 18px; overflow: hidden; background: #04070d; box-shadow: 0 0 0 1px rgba(244,241,234,.12), 0 50px 100px -40px rgba(0,0,0,.9); user-select: none; touch-action: pan-y; cursor: ew-resize; }
+  .canvas { position: absolute; left: 0; top: 0; width: var(--cw); height: var(--ch); transform-origin: 0 0; transform: scale(var(--s, 1)); }
+  .after { position: absolute; inset: 0; background: center top / cover no-repeat; }
+  .before { position: absolute; inset: 0; clip-path: inset(0 calc(100% - var(--x, 50%)) 0 0); }
+
+  /* the dated site, laid out at real desktop / phone size */
+  .old { position: absolute; inset: 0; background: #e9eef3; color: #222; font-family: Arial, Helvetica, sans-serif; overflow: hidden; }
+  .old-top { background: linear-gradient(#2f6fb5, #1d4f8c); color: #fff; padding: 14px 60px; display: flex; align-items: center; justify-content: space-between; border-bottom: 4px solid #f2b705; }
+  .old-logo { font: bold 30px 'Times New Roman', serif; text-shadow: 2px 2px 0 #0b2c55; }
+  .old-logo small { display: block; font: italic 13px Arial; color: #cfe1ff; text-shadow: none; }
+  .old-phone { font: bold 26px Arial; color: #ffe35a; text-align: right; }
+  .old-phone small { display: block; color: #fff; font-size: 12px; font-weight: normal; }
+  .old-nav { background: #f2b705; display: flex; gap: 2px; padding: 0 60px; }
+  .old-nav span { background: linear-gradient(#ffd84d, #f2b705); padding: 10px 18px; font-size: 15px; font-weight: bold; color: #333; border-right: 1px solid #c99500; }
+  .old-run { background: #c0161d; color: #fff; font-weight: bold; font-size: 16px; padding: 7px 0; white-space: nowrap; overflow: hidden; }
+  .old-run i { display: inline-block; padding-left: 100%; animation: run 20s linear infinite; font-style: normal; }
+  @keyframes run { to { transform: translateX(-100%); } }
+  .old-body { display: grid; grid-template-columns: 1fr 300px; gap: 24px; padding: 24px 60px; }
+  .old-main h1 { font: bold 38px/1.15 'Times New Roman', serif; color: #1d4f8c; margin: 0 0 14px; letter-spacing: 0; }
+  .old-main h1 b { color: #c0161d; }
+  .old-photo { height: 300px; border: 6px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.35); background: url(/img/remont/raw-md.webp) center / cover; position: relative; }
+  .old-photo em { position: absolute; right: -12px; top: 16px; transform: rotate(8deg); background: #c0161d; color: #fff; font: bold 24px Arial; padding: 12px 16px; border: 3px dashed #fff; font-style: normal; }
+  .old-main ul { padding: 0; list-style: none; margin: 16px 0; columns: 2; font-size: 17px; line-height: 2; }
+  .old-main li::before { content: '✔ '; color: #2a9d2a; font-weight: bold; }
+  .old-btn { display: inline-block; background: linear-gradient(#ff9d2e, #e35d00); color: #fff; font: bold 20px Arial; padding: 16px 34px; border-radius: 32px; border: 2px solid #b54600; box-shadow: inset 0 2px 0 rgba(255,255,255,.5), 0 3px 0 #8a3500; text-transform: uppercase; }
+  .old-side { background: #fff; border: 1px solid #b9c7d6; padding: 14px; font-size: 15px; align-self: start; }
+  .old-side h3 { margin: 0 0 10px; background: #1d4f8c; color: #fff; padding: 8px 10px; font-size: 16px; }
+  .old-side p { margin: 8px 0; border-bottom: 1px dotted #b9c7d6; padding-bottom: 8px; }
+  .old-side .cnt { margin-top: 12px; display: flex; gap: 6px; }
+  .old-side .cnt span { width: 88px; height: 31px; background: repeating-linear-gradient(90deg,#dfe8f1 0 6px,#c8d6e4 6px 12px); border: 1px solid #9fb2c6; font: 9px Arial; color: #567; display: grid; place-items: center; }
+  .phone .old-top { padding: 12px 16px; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .phone .old-logo { font-size: 24px; } .phone .old-phone { font-size: 20px; text-align: left; }
+  .phone .old-nav { padding: 0 8px; } .phone .old-nav span { padding: 8px 9px; font-size: 13px; } .phone .old-nav span:nth-child(n+4) { display: none; }
+  .phone .old-body { grid-template-columns: 1fr; padding: 16px; } .phone .old-side { display: none; }
+  .phone .old-main h1 { font-size: 28px; } .phone .old-photo { height: 200px; } .phone .old-main ul { columns: 1; font-size: 16px; }
+
+  .divider { position: absolute; top: 0; bottom: 0; left: var(--x, 50%); width: 0; z-index: 5; pointer-events: none; }
+  .divider::before { content: ''; position: absolute; inset: 0 auto 0 -1px; width: 2px; background: var(--accent); box-shadow: 0 0 24px rgba(255,107,26,.7); }
+  .handle { pointer-events: auto; position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%); width: 58px; height: 58px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; cursor: ew-resize; box-shadow: 0 10px 30px rgba(0,0,0,.45); transition: transform .5s cubic-bezier(.34,1.56,.64,1); }
+  .handle.drag { transform: translate(-50%, -50%) scale(.9); transition-duration: .08s; }
+  .handle:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
+  .tag { position: absolute; bottom: 14px; z-index: 6; font: 600 13px 'Onest'; padding: 7px 12px; border-radius: 999px; white-space: nowrap; pointer-events: none; }
+  .tag.l { right: calc(100% - var(--x, 50%) + 12px); background: #fff; color: #1d4f8c; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+  .tag.r { left: calc(var(--x, 50%) + 12px); background: var(--accent); color: var(--accent-ink); }
+
+  @media (max-width: 900px) { .hero { grid-template-columns: 1fr; } .copy { order: 0; } .win { order: 1; max-width: 420px; justify-self: center; } }
+  @media (prefers-reduced-motion: reduce) { .old-run i { animation: none; padding-left: 0; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <header><div class="mark">TURCH</div><a class="tg" href="https://t.me/Turch_I">Написать в Telegram</a></header>
+  <main class="hero">
+    <section class="copy">
+      <h1>Ваш сайт может выглядеть <span>вот так</span></h1>
+      <p class="lead">Потяните ползунок. Слева типичный сайт ремонтной компании, справа тот же бизнес после редизайна.</p>
+      <a class="cta" href="https://t.me/Turch_I">Обсудить свой сайт</a>
+      <div class="hint">Можно стрелками <kbd>←</kbd> <kbd>→</kbd></div>
+    </section>
+    <div class="win" id="win" style="--x: 88%">
+      <div class="canvas" id="canvas">
+        <div class="after" id="after" role="img" aria-label="Сайт ремонтной компании после редизайна"></div>
+        <div class="before" aria-hidden="true">
+          <div class="old" id="old">
+            <div class="old-top"><div class="old-logo">РемСтройСервис<small>Качественно! Недорого! Быстро!</small></div><div class="old-phone">8-800-000-00-00<small>Звоните с 9 до 18 кроме выходных</small></div></div>
+            <div class="old-nav"><span>Главная</span><span>О компании</span><span>Услуги</span><span>Цены</span><span>Фотогалерея</span><span>Контакты</span></div>
+            <div class="old-run"><i>!!! АКЦИЯ !!! ПРИ ЗАКАЗЕ РЕМОНТА ПОД КЛЮЧ — ДИЗАЙН-ПРОЕКТ В ПОДАРОК !!! ВЫЕЗД ЗАМЕРЩИКА БЕСПЛАТНО !!! ГАРАНТИЯ !!!</i></div>
+            <div class="old-body">
+              <div class="old-main">
+                <h1>Ремонт квартир <b>под ключ</b> в Москве и области недорого</h1>
+                <div class="old-photo"><em>-15%</em></div>
+                <ul><li>Опытные мастера</li><li>Низкие цены</li><li>Гарантия качества</li><li>Работаем без выходных</li><li>Индивидуальный подход</li><li>Закупка материалов</li></ul>
+                <span class="old-btn">Оставить заявку</span>
+              </div>
+              <div class="old-side"><h3>Наши преимущества</h3><p>Более 10 лет на рынке</p><p>Собственная бригада</p><p>Договор и смета</p><p>Скидки пенсионерам</p><div class="cnt"><span>LiveInternet</span><span>Яндекс.Метрика</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <span class="tag l">Обычный сайт</span>
+      <span class="tag r">Сайт от TURCH</span>
+      <div class="divider"><button class="handle" id="handle" type="button" role="slider" aria-label="Сравнить обычный сайт и сайт от TURCH" aria-valuemin="0" aria-valuemax="100" aria-valuenow="88">
+        <svg width="24" height="24" viewBox="0 0 26 26" aria-hidden="true"><path d="M9 7 3 13l6 6M17 7l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button></div>
+    </div>
+  </main>
+</div>
+<script>
+(() => {
+  const win = document.getElementById('win'), canvas = document.getElementById('canvas'), after = document.getElementById('after'), old = document.getElementById('old'), handle = document.getElementById('handle');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Both halves are laid out at a real device size, then scaled together, so the comparison is fair.
+  const fit = () => {
+    const phone = innerWidth < 900;
+    const [cw, ch] = phone ? [390, 844] : [1440, 900];
+    win.style.setProperty('--ar', `${cw} / ${ch}`);
+    canvas.style.setProperty('--cw', cw + 'px'); canvas.style.setProperty('--ch', ch + 'px');
+    canvas.style.setProperty('--s', win.clientWidth / cw);
+    old.classList.toggle('phone', phone);
+    after.style.backgroundImage = `url(/shots/remont-hero${phone ? '-m' : ''}.webp)`;
+  };
+  new ResizeObserver(fit).observe(win); fit();
+  let x = 88, target = 88, raf = 0, touched = false, drag = false;
+  const set = (v) => { x = v; win.style.setProperty('--x', v + '%'); handle.setAttribute('aria-valuenow', Math.round(v)); };
+  const loop = () => { x += (target - x) * 0.16; set(x); raf = Math.abs(target - x) > 0.05 ? requestAnimationFrame(loop) : 0; };
+  const go = (v) => { target = Math.max(2, Math.min(98, v)); if (!raf) raf = requestAnimationFrame(loop); };
+  const pos = (e) => { const r = win.getBoundingClientRect(); return ((e.clientX - r.left) / r.width) * 100; };
+  win.addEventListener('pointerdown', (e) => { drag = true; touched = true; handle.classList.add('drag'); win.setPointerCapture(e.pointerId); go(pos(e)); });
+  win.addEventListener('pointermove', (e) => { if (drag) go(pos(e)); });
+  const up = () => { drag = false; handle.classList.remove('drag'); };
+  win.addEventListener('pointerup', up); win.addEventListener('pointercancel', up);
+  handle.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); touched = true; go(target + (e.key === 'ArrowLeft' ? -5 : 5)); } });
+  if (reduced) set(50); else setTimeout(() => { if (!touched) go(50); }, 900);
+})();
+</script>
+</body>
+</html>
