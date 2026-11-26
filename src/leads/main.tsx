@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import '../index.css';
 import '@/shared/kit/interaction-kit.js';
 import { NICHES } from '@/lib/niches';
+import { CopyBtn, copyText } from './ui';
+import Radar, { freshCount, useRadar } from './Radar';
 import { forgetKey, open as openBlob, recallKey, rememberKey, seal, unlock } from './vault';
 import {
   SOURCES, STEP_LABEL, WAIT, fmtPhone, leadLink, message, normPhone, objections, tgUrl, waUrl, type Source,
@@ -266,34 +268,6 @@ function parsePaste(text: string, defaults: { niche: string; city: string; sourc
 }
 
 /* ─── small parts ─── */
-async function copyText(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-  } catch {
-    const t = document.createElement('textarea');
-    t.value = text;
-    document.body.appendChild(t);
-    t.select();
-    document.execCommand('copy');
-    t.remove();
-  }
-}
-function CopyBtn({ text, label, primary }: { text: string; label: string; primary?: boolean }) {
-  const [done, setDone] = useState(false);
-  return (
-    <button
-      type="button"
-      className={`btn ${primary ? 'btn-a' : 'btn-b ui-press--on-dark'} ui-press ui-focus h-[44px] px-4 text-[15px]`}
-      onClick={async () => {
-        await copyText(text);
-        setDone(true);
-        window.setTimeout(() => setDone(false), 1500);
-      }}
-    >
-      {done ? 'Скопировано ✓' : label}
-    </button>
-  );
-}
 const field = 'w-full h-[46px] rounded-[11px] px-3.5 text-[16px] bg-bg text-tx outline-none ui-focus';
 const ring = { boxShadow: 'inset 0 0 0 1px var(--line)' };
 function Field({ label, children, className = '' }: { label: string; children: ReactNode; className?: string }) {
@@ -582,6 +556,12 @@ const TABS: [Tab, string][] = [['today', 'На сегодня'], ['wait', 'Жд�
 function App({ vaultKey, initial, notice, onLock }: { vaultKey: CryptoKey; initial: Lead[]; notice: string; onLock: () => void }) {
   const [leads, setLeads] = useState<Lead[]>(initial);
   const [tab, setTab] = useState<Tab>('today');
+  const [view, setView] = useState<'leads' | 'radar'>(() => {
+    try { return sessionStorage.getItem('turch-view') === 'radar' ? 'radar' : 'leads'; } catch { return 'leads'; }
+  });
+  useEffect(() => { try { sessionStorage.setItem('turch-view', view); } catch { /* convenience only */ } }, [view]);
+  const radar = useRadar(vaultKey);
+  const radarNew = freshCount(radar.data);
   const [query, setQuery] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
   const [goal, setGoal] = useState(() => {
@@ -709,6 +689,22 @@ function App({ vaultKey, initial, notice, onLock }: { vaultKey: CryptoKey; initi
         </p>
       )}
 
+      <nav className="mt-7 flex gap-1 rounded-[14px] bg-bg-2 p-1 sm:w-max" style={ring} aria-label="Раздел">
+        {([['leads', 'Лиды', leads.length], ['radar', 'Радар Threads', radarNew]] as const).map(([k, t, n]) => (
+          <button
+            key={k}
+            type="button"
+            aria-pressed={view === k}
+            className={`ui-press ui-focus flex h-[42px] flex-1 items-center justify-center gap-2 rounded-[11px] px-5 text-[15px] font-semibold sm:flex-none ${view === k ? 'bg-bg-3 text-tx' : 'text-tx-3'}`}
+            onClick={() => setView(k)}
+          >
+            {t}
+            {n > 0 && <span className={`rounded-full px-2 text-[13px] tabular-nums ${k === 'radar' ? 'bg-accent text-accent-ink' : 'bg-[rgb(244_241_234/0.1)] text-tx-2'}`}>{n}</span>}
+          </button>
+        ))}
+      </nav>
+
+      {view === 'radar' ? <Radar radar={radar} /> : (<>
       <section className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Сводка">
         <div className="rounded-[18px] bg-bg-2 p-5 sm:col-span-2" style={ring}>
           <div className="flex items-baseline justify-between gap-3">
@@ -813,6 +809,7 @@ function App({ vaultKey, initial, notice, onLock }: { vaultKey: CryptoKey; initi
       </section>
 
       <Guide />
+      </>)}
     </main>
   );
 }

@@ -1,0 +1,70 @@
+name: Lead radar
+
+# Every 30 minutes, 06:00–23:30 Moscow time: collect fresh Threads posts, score them with rules
+# (ops/threads/radar/score.py), merge into the list and publish it encrypted to the `radar` branch.
+# The tracker (/leads/ → «Радар Threads») downloads and decrypts it after login. No model is involved.
+on:
+  schedule:
+    - cron: '*/30 3-20 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: radar
+  cancel-in-progress: false
+
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache th
+        uses: actions/cache@v4
+        with:
+          path: ~/th-bin
+          key: th-981cccd2-${{ runner.os }}
+
+      - name: Install th and crypto
+        run: |
+          mkdir -p ~/th-bin
+          bash ops/threads/install-th.sh ~/th-bin/th
+          pip install -q cryptography==50.0.1
+
+      # the plaintext list lives only in the Actions cache between runs
+      - name: Restore radar state
+        uses: actions/cache/restore@v4
+        with:
+          path: state
+          key: radar-state-${{ github.run_id }}
+          restore-keys: radar-state-
+
+      - name: Run radar
+        run: TH_BIN="$HOME/th-bin/th" python3 ops/threads/radar/run.py --minutes 8 --state state/radar.json --out out/radar.enc
+
+      - name: Save radar state
+        uses: actions/cache/save@v4
+        with:
+          path: state
+          key: radar-state-${{ github.run_id }}
+
+      - name: Publish encrypted list
+        run: |
+          cd out
+          git init -q -b radar
+          printf 'Encrypted lead-radar list for /leads/. Written by .github/workflows/radar.yml.\n' > README.md
+          git add radar.enc README.md
+          git -c user.name="lead-radar" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -qm "radar $(date -u +%FT%TZ)"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" radar

@@ -28,6 +28,7 @@ jobs:
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
           VITE_SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+          VITE_RADAR_URL: https://raw.githubusercontent.com/${{ github.repository }}/radar/radar.enc
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

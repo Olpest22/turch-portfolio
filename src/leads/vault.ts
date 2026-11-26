@@ -66,3 +66,27 @@ export async function recallKey(): Promise<CryptoKey | null> {
     return null;
   }
 }
+
+/* ─── lead radar ───
+   GitHub Actions encrypts the radar list with ops/threads/radar/public.pem (RSA-OAEP-SHA256 wrapping a random
+   AES-256-GCM key). The matching private key is in gate.json, sealed with the password key, so it opens only here. */
+export type RadarFile = { v: number; k: string; d: string };
+let radarPriv: Promise<CryptoKey | null> | null = null;
+function radarKey(key: CryptoKey) {
+  radarPriv ??= (async () => {
+    const sealed = (CFG as { radar?: string }).radar;
+    if (!sealed) return null;
+    const u = unb64(sealed);
+    const pkcs8 = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: u.slice(0, 12) }, key, u.slice(12));
+    return crypto.subtle.importKey('pkcs8', pkcs8, { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['decrypt']);
+  })();
+  return radarPriv;
+}
+export async function openRadar(key: CryptoKey, file: RadarFile): Promise<string> {
+  const priv = await radarKey(key);
+  if (!priv) throw new Error('no radar key');
+  const raw = await crypto.subtle.decrypt({ name: 'RSA-OAEP' }, priv, unb64(file.k));
+  const aes = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']);
+  const u = unb64(file.d);
+  return td.decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: u.slice(0, 12) }, aes, u.slice(12)));
+}
