@@ -1,8 +1,9 @@
-import { StrictMode, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { StrictMode, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../index.css';
 import '@/shared/kit/interaction-kit.js';
 import { NICHES } from '@/lib/niches';
+import { forgetKey, open as openBlob, recallKey, rememberKey, seal, unlock } from './vault';
 import {
   SOURCES, STEP_LABEL, WAIT, fmtPhone, leadLink, message, normPhone, objections, tgUrl, waUrl, type Source,
 } from '@/lib/outreach';
@@ -29,7 +30,8 @@ type Lead = {
   log: { t: number; s: string }[];
 };
 
-const KEY = 'turch-leads-v1';
+const PLAIN_KEY = 'turch-leads-v1'; // before the password: migrated on first unlock, then removed
+const KEY = 'turch-leads-v2'; // AES-GCM, see vault.ts
 const GOAL_KEY = 'turch-leads-goal';
 const DAY = 86_400_000;
 const STATUS: Record<Status, string> = { todo: 'Новый', sent: 'Ждём ответа', reply: 'Ответил', deal: 'Сделка', no: 'Отказ' };
@@ -41,14 +43,40 @@ const STATUS_TONE: Record<Status, string> = {
   no: 'bg-[rgb(244_241_234/0.05)] text-tx-3',
 };
 
-const load = (): Lead[] => {
-  try {
-    const v = JSON.parse(localStorage.getItem(KEY) || '[]');
-    return Array.isArray(v) ? v : [];
-  } catch {
-    return [];
-  }
+const parseLeads = (json: string): Lead[] => {
+  const v = JSON.parse(json || '[]');
+  return Array.isArray(v) ? v : [];
 };
+const lsGet = (k: string) => {
+  try { return localStorage.getItem(k); } catch { return null; }
+};
+
+/** Decrypts the base; moves the old unencrypted v1 list in on first unlock. */
+async function loadVault(key: CryptoKey): Promise<{ leads: Lead[]; notice: string }> {
+  const blob = lsGet(KEY);
+  let leads: Lead[] = [];
+  let notice = '';
+  if (blob) {
+    try {
+      leads = parseLeads(await openBlob(key, blob));
+    } catch {
+      // saved under an older password: keep it aside instead of overwriting
+      try { localStorage.setItem(`${KEY}-old-${Date.now()}`, blob); localStorage.removeItem(KEY); } catch { /* nothing else to do */ }
+      notice = 'Сохранённый список был зашифрован старым паролем и не открылся. Загрузите последний CSV.';
+    }
+  }
+  const plain = lsGet(PLAIN_KEY);
+  if (plain) {
+    try {
+      const old = parseLeads(plain);
+      const ids = new Set(leads.map((l) => l.id));
+      leads = [...leads, ...old.filter((l) => !ids.has(l.id))];
+      localStorage.setItem(KEY, await seal(key, JSON.stringify(leads)));
+      localStorage.removeItem(PLAIN_KEY);
+    } catch { /* leave v1 in place, try again next time */ }
+  }
+  return { leads, notice };
+}
 const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
 const startOfDay = (t = Date.now()) => new Date(t).setHours(0, 0, 0, 0);
 const sourceFromUrl = (u: string): Source | '' => (/2gis/i.test(u) ? '2gis' : /yandex|ya\.ru/i.test(u) ? 'yandex' : '');
@@ -482,8 +510,8 @@ function LeadCard({ l, open, onToggle, update, remove, onSent }: {
 type Tab = 'today' | 'wait' | 'reply' | 'deal' | 'no' | 'all';
 const TABS: [Tab, string][] = [['today', 'На сегодня'], ['wait', 'Ждём ответа'], ['reply', 'Ответили'], ['deal', 'Сделки'], ['no', 'Отказ'], ['all', 'Все']];
 
-function App() {
-  const [leads, setLeads] = useState<Lead[]>(load);
+function App({ vaultKey, initial, notice, onLock }: { vaultKey: CryptoKey; initial: Lead[]; notice: string; onLock: () => void }) {
+  const [leads, setLeads] = useState<Lead[]>(initial);
   const [tab, setTab] = useState<Tab>('today');
   const [query, setQuery] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
@@ -493,9 +521,17 @@ function App() {
   const [saveErr, setSaveErr] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // encrypt on every change; a sequence number keeps a slow older write from landing after a newer one
+  const seq = useRef(0);
+  const first = useRef(true);
   useEffect(() => {
-    try { localStorage.setItem(KEY, JSON.stringify(leads)); setSaveErr(false); } catch { setSaveErr(true); }
-  }, [leads]);
+    if (first.current) { first.current = false; return; }
+    const n = ++seq.current;
+    seal(vaultKey, JSON.stringify(leads)).then((blob) => {
+      if (n !== seq.current) return;
+      try { localStorage.setItem(KEY, blob); setSaveErr(false); } catch { setSaveErr(true); }
+    }, () => setSaveErr(true));
+  }, [leads, vaultKey]);
   useEffect(() => { try { localStorage.setItem(GOAL_KEY, String(goal)); } catch { /* per-browser convenience only */ } }, [goal]);
 
   const add = (ls: Lead[]) => {
@@ -550,7 +586,7 @@ function App() {
     a.click();
     URL.revokeObjectURL(a.href);
   };
-  const [importMsg, setImportMsg] = useState('');
+  const [importMsg, setImportMsg] = useState(notice);
   const importCsv = async (f: File) => {
     const text = await f.text();
     const ls = parsePaste(text, { niche: 'potolki', city: '', source: '2gis' });
@@ -570,6 +606,7 @@ function App() {
         <div className="flex flex-wrap gap-2.5">
           <button type="button" className="btn btn-b ui-press ui-press--on-dark ui-focus h-[42px] px-4 text-[15px]" onClick={exportCsv} disabled={!leads.length}>Скачать CSV</button>
           <button type="button" className="btn btn-b ui-press ui-press--on-dark ui-focus h-[42px] px-4 text-[15px]" onClick={() => fileRef.current?.click()}>Загрузить CSV</button>
+          <button type="button" className="btn btn-b ui-press ui-press--on-dark ui-focus h-[42px] px-4 text-[15px]" onClick={onLock}>Выйти</button>
           <input ref={fileRef} type="file" accept=".csv,text/csv,text/plain" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void importCsv(f); e.target.value = ''; }} />
         </div>
       </header>
@@ -708,15 +745,93 @@ function Guide() {
         ))}
       </ol>
       <p className="mb-0 mt-8 max-w-[760px] text-[14px] leading-relaxed text-tx-3">
-        Данные хранятся только в этом браузере. Раз в несколько дней скачивайте CSV: если почистить историю или открыть сайт на другом устройстве, список будет пустым, и его можно загрузить из файла.
+        Данные хранятся только в этом браузере и зашифрованы паролем. Раз в несколько дней скачивайте CSV: если почистить историю или открыть сайт на другом устройстве, список будет пустым, и его можно загрузить из файла.
       </p>
     </section>
   );
 }
 
+/* ─── password gate ─── */
+type Gate = { s: 'boot' } | { s: 'locked' } | { s: 'open'; key: CryptoKey; leads: Lead[]; notice: string };
+
+function Login({ onOpen }: { onOpen: (k: CryptoKey, remember: boolean) => void }) {
+  const [pw, setPw] = useState('');
+  const [remember, setRemember] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!pw.trim() || busy) return;
+    setBusy(true);
+    setErr('');
+    try {
+      const k = await unlock(pw);
+      if (k) onOpen(k, remember);
+      else setErr('Неверный пароль');
+    } catch {
+      setErr('Браузер не поддерживает шифрование. Откройте страницу в свежем Chrome, Яндекс Браузере или Safari.');
+    }
+    setBusy(false);
+  };
+  return (
+    <main className="wrap grid min-h-[100svh] content-center py-12">
+      <div className="mx-auto w-full max-w-[400px]">
+      <div className="font-display text-[19px] font-extrabold tracking-[0.1em]">TURCH</div>
+      <h1 className="h2 m-0 mt-6 text-[36px]">Вход в трекер</h1>
+      <form className="mt-8 grid gap-4" onSubmit={submit}>
+        <input type="text" name="username" autoComplete="username" value="turch" readOnly hidden />
+        <label className="grid gap-2 text-[15px] text-tx-2">
+          Пароль
+          <input
+            className={`${field} h-[52px]`}
+            style={{ boxShadow: `inset 0 0 0 1px ${err ? '#ff6b6b' : 'var(--line)'}` }}
+            type="password"
+            name="password"
+            autoComplete="current-password"
+            autoFocus
+            aria-invalid={!!err}
+            aria-describedby="pw-err"
+            value={pw}
+            onChange={(e) => { setPw(e.target.value); setErr(''); }}
+          />
+        </label>
+        <label className="flex items-center gap-3 text-[15px] text-tx-2">
+          <input type="checkbox" className="size-[18px]" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+          Запомнить на этом устройстве
+        </label>
+        <button type="submit" className="btn btn-a ui-press ui-focus mt-2" disabled={busy}>{busy ? 'Проверяю…' : 'Войти'}</button>
+        <p id="pw-err" className="m-0 min-h-[24px] text-[15px] text-[#ff8f8f]" aria-live="polite">{err}</p>
+      </form>
+      </div>
+    </main>
+  );
+}
+
+function Root() {
+  const [g, setG] = useState<Gate>({ s: 'boot' });
+  const enter = async (key: CryptoKey) => {
+    const { leads, notice } = await loadVault(key);
+    setG({ s: 'open', key, leads, notice });
+  };
+  useEffect(() => {
+    recallKey().then((k) => (k ? enter(k) : setG({ s: 'locked' })), () => setG({ s: 'locked' }));
+  }, []);
+  if (g.s === 'boot') return null;
+  if (g.s === 'locked')
+    return <Login onOpen={(k, remember) => { if (remember) void rememberKey(k); void enter(k); }} />;
+  return (
+    <App
+      vaultKey={g.key}
+      initial={g.leads}
+      notice={g.notice}
+      onLock={() => { void forgetKey(); setG({ s: 'locked' }); }}
+    />
+  );
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <Root />
   </StrictMode>,
 );
 (window as unknown as { BetterUI?: { init: (d: Document) => void } }).BetterUI?.init(document);
