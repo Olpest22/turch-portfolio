@@ -138,6 +138,96 @@ function parseCsv(text: string, sep: string): string[][] {
   return out;
 }
 
+/* ─── tables: our CSV export, GisFind and other 2GIS exports ─── */
+const norm = (h: string) => h.toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+/** Column finders, checked in this order; each column is used once. */
+const FIELDS: [string, RegExp][] = [
+  ['status', /^статус$/],
+  ['sent', /^отправлено$/],
+  ['last', /^последнее$/],
+  ['source', /^источник$/],
+  ['niche', /^ниша$/],
+  ['whatsapp', /whatsapp|ватсап|вотсап|^wa$/],
+  ['tg', /telegram|телеграм|^tg$/],
+  ['instagram', /instagram|инстаграм|^inst/],
+  ['site', /сайт|website|^site|^web$|^www/],
+  ['card', /карточк|2gis|2гис|ссылк|link|url|яндекс/],
+  ['name', /^(название|наименование|компания|организация|имя|name|title|firm|company)/],
+  ['category', /рубрик|категори|сфера|деятельност|category|rubric/],
+  ['city', /^(город|населенный пункт|city)/],
+  ['address', /адрес|address/],
+  ['phone', /телефон|phone|номер|^тел/],
+  ['rating', /рейтинг|rating|оценка/],
+  ['reviews', /отзыв|review/],
+  ['note', /заметк|комментари|note/],
+];
+/** Rubric text from 2GIS → our niche key. */
+const NICHE_WORDS: [RegExp, string][] = [
+  [/потол/, 'potolki'],
+  [/кухн/, 'kuhni'],
+  [/мебел|шкаф|гардероб/, 'mebel'],
+  [/вывеск|наружн|реклам|неон|полиграф/, 'vyveski'],
+  [/кузов|покраск|автосервис|сто\b|авторемонт|рихтов/, 'kuzov'],
+  [/строит|домов|дом под ключ|каркас|сруб/, 'doma'],
+  [/ремонт квартир|отделоч|ремонт помещ|ремонтн/, 'remont'],
+];
+const nicheFromText = (t: string) => {
+  const x = t.toLowerCase();
+  return NICHE_WORDS.find(([re]) => re.test(x))?.[1] ?? '';
+};
+/** Real websites only: social pages, maps and messengers don't count. */
+const isRealSite = (u: string) =>
+  !!u.trim() && !/^(-|нет|no|—)$/i.test(u.trim()) && !/(vk\.com|instagram|taplink|2gis|yandex\.|avito|wa\.me|whatsapp|t\.me|ok\.ru|facebook|tiktok|youtube)/i.test(u);
+
+function fromTable(rows: string[][], defaults: { niche: string; city: string; source: Source }, base: () => Lead) {
+  if (rows.length < 2) return null;
+  const head = rows[0].map(norm);
+  const col: Record<string, number> = {};
+  const used = new Set<number>();
+  for (const [f, re] of FIELDS) {
+    const i = head.findIndex((h, k) => !used.has(k) && re.test(h));
+    if (i >= 0) { col[f] = i; used.add(i); }
+  }
+  if (col.name === undefined || (col.phone === undefined && col.whatsapp === undefined && col.card === undefined)) return null;
+  let withSite = 0;
+  const leads: Lead[] = [];
+  for (const r of rows.slice(1)) {
+    const g = (f: string) => (col[f] !== undefined ? String(r[col[f]] ?? '').trim() : '');
+    if (isRealSite(g('site'))) { withSite++; continue; }
+    const l = base();
+    l.name = g('name').slice(0, 60);
+    const nicheKey = g('niche');
+    l.niche = NICHES[nicheKey] ? nicheKey : nicheFromText(`${g('category')} ${l.name}`) || defaults.niche;
+    const addr = g('address');
+    l.city = g('city') || (addr.split(',')[0].match(/^[А-ЯЁа-яё -]{3,30}$/)?.[0]?.trim() ?? '') || defaults.city;
+    // phones: a cell may hold several; WhatsApp wins because the «Написать» button opens WhatsApp
+    const phones = g('phone').split(/[,;\n]| или /).map((x) => x.trim()).filter((x) => normPhone(x));
+    const wa = normPhone(g('whatsapp').replace(/^https?:\/\/(wa\.me|api\.whatsapp\.com\/send\?phone=)\/?/i, ''));
+    const mobile = phones.find((x) => /^79/.test(normPhone(x)));
+    l.phone = wa ? `+${wa}` : mobile || phones[0] || '';
+    const others = phones.filter((x) => normPhone(x) !== normPhone(l.phone));
+    l.tg = g('tg');
+    l.card = g('card');
+    const src = g('source');
+    l.source = src === 'yandex' || src === '2gis' ? src : sourceFromUrl(l.card) || defaults.source;
+    const st = g('status') as Status;
+    if (st in STATUS) l.status = st;
+    l.step = Math.min(3, Math.max(0, parseInt(g('sent'), 10) || 0));
+    const last = Date.parse(g('last'));
+    l.lastAt = Number.isFinite(last) ? last : 0;
+    const extra = [
+      g('category') && `Рубрика: ${g('category')}`,
+      g('rating') && `Рейтинг ${g('rating')}${g('reviews') ? `, отзывы: ${g('reviews')}` : ''}`,
+      g('instagram') && `Instagram: ${g('instagram')}`,
+      others.length ? `Ещё телефоны: ${others.join(', ')}` : '',
+      addr && `Адрес: ${addr}`,
+    ].filter(Boolean);
+    l.note = [g('note'), ...extra].filter(Boolean).join('\n');
+    if (l.name || l.phone) leads.push(l);
+  }
+  return { leads, withSite };
+}
+
 /** Turns pasted text (one company per line, or our own CSV export) into leads. */
 function parsePaste(text: string, defaults: { niche: string; city: string; source: Source }): Lead[] {
   const t = text.replace(/^﻿/, '').trim();
@@ -150,30 +240,9 @@ function parsePaste(text: string, defaults: { niche: string; city: string; sourc
     id: uid(), niche: defaults.niche, name: '', city: defaults.city, phone: '', tg: '', card: '', source: defaults.source,
     note: '', status: 'todo', step: 0, lastAt: 0, created: now, log: [],
   });
-  // our export (or any table with these headers)
-  const head = rows[0].map((h) => h.trim().toLowerCase());
-  if (head.includes('название')) {
-    const ix = (h: string) => head.indexOf(h.toLowerCase());
-    return rows.slice(1).map((r) => {
-      const g = (h: string) => (ix(h) >= 0 ? (r[ix(h)] || '').trim() : '');
-      const l = base();
-      l.name = g('Название');
-      l.niche = NICHES[g('Ниша')] ? g('Ниша') : defaults.niche;
-      l.city = g('Город') || defaults.city;
-      l.phone = g('Телефон');
-      l.tg = g('Telegram');
-      l.card = g('Карточка');
-      const src = g('Источник');
-      l.source = src === 'yandex' || src === '2gis' ? src : (sourceFromUrl(l.card) || defaults.source);
-      const st = g('Статус') as Status;
-      if (st in STATUS) l.status = st;
-      l.step = Math.min(3, Math.max(0, parseInt(g('Отправлено'), 10) || 0));
-      const last = Date.parse(g('Последнее'));
-      l.lastAt = Number.isFinite(last) ? last : 0;
-      l.note = g('Заметка');
-      return l;
-    }).filter((l) => l.name || l.phone);
-  }
+  // a table with a header row: our own export, a GisFind export, or any sheet with recognisable columns
+  const table = fromTable(rows, defaults, base);
+  if (table) return table.leads;
   // free-form: name; phone; city; link — in any order, each line split on its own separator
   const lines = t.split(/\r?\n/).filter((x) => x.trim());
   return lines.map((line) => line.split(/[\t;]/.test(line) ? /[\t;]/ : /,/)).map((cells) => {
@@ -588,10 +657,34 @@ function App({ vaultKey, initial, notice, onLock }: { vaultKey: CryptoKey; initi
   };
   const [importMsg, setImportMsg] = useState(notice);
   const importCsv = async (f: File) => {
-    const text = await f.text();
-    const ls = parsePaste(text, { niche: 'potolki', city: '', source: '2gis' });
-    const n = add(ls);
-    setImportMsg(`Из файла добавлено: ${n}${ls.length - n ? `, уже были: ${ls.length - n}` : ''}`);
+    const defaults = { niche: 'potolki', city: '', source: '2gis' as Source };
+    let rows: string[][];
+    try {
+      if (/\.xlsx$/i.test(f.name)) {
+        const { readSheet } = await import('read-excel-file/browser');
+        const data = await readSheet(f);
+        rows = data.map((r) => r.map((c) => (c == null ? '' : c instanceof Date ? c.toISOString() : String(c))));
+      } else {
+        const text = (await f.text()).replace(/^\uFEFF/, '');
+        const first = text.split(/\r?\n/)[0];
+        rows = parseCsv(text, first.includes('\t') ? '\t' : first.includes(';') ? ';' : ',');
+      }
+    } catch {
+      setImportMsg('Не получилось прочитать файл. Нужен CSV или Excel (.xlsx).');
+      return;
+    }
+    const base = (): Lead => ({
+      id: uid(), niche: defaults.niche, name: '', city: '', phone: '', tg: '', card: '', source: defaults.source,
+      note: '', status: 'todo', step: 0, lastAt: 0, created: Date.now(), log: [],
+    });
+    const t = fromTable(rows, defaults, base);
+    if (!t) {
+      setImportMsg('В файле не нашлись столбцы «Название» и «Телефон». Пришлите файл мне, я добавлю его формат.');
+      return;
+    }
+    const n = add(t.leads);
+    const dup = t.leads.length - n;
+    setImportMsg(`Из файла добавлено: ${n}${dup ? `, уже были: ${dup}` : ''}${t.withSite ? `, пропущено с сайтом: ${t.withSite}` : ''}`);
   };
 
   const pct = Math.min(100, Math.round((sentToday / Math.max(1, goal)) * 100));
@@ -605,9 +698,9 @@ function App({ vaultKey, initial, notice, onLock }: { vaultKey: CryptoKey; initi
         </div>
         <div className="flex flex-wrap gap-2.5">
           <button type="button" className="btn btn-b ui-press ui-press--on-dark ui-focus h-[42px] px-4 text-[15px]" onClick={exportCsv} disabled={!leads.length}>Скачать CSV</button>
-          <button type="button" className="btn btn-b ui-press ui-press--on-dark ui-focus h-[42px] px-4 text-[15px]" onClick={() => fileRef.current?.click()}>Загрузить CSV</button>
+          <button type="button" className="btn btn-b ui-press ui-press--on-dark ui-focus h-[42px] px-4 text-[15px]" onClick={() => fileRef.current?.click()}>Загрузить CSV / Excel</button>
           <button type="button" className="btn btn-b ui-press ui-press--on-dark ui-focus h-[42px] px-4 text-[15px]" onClick={onLock}>Выйти</button>
-          <input ref={fileRef} type="file" accept=".csv,text/csv,text/plain" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void importCsv(f); e.target.value = ''; }} />
+          <input ref={fileRef} type="file" accept=".csv,.xlsx,.txt,text/csv,text/plain" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void importCsv(f); e.target.value = ''; }} />
         </div>
       </header>
       {(importMsg || saveErr) && (
@@ -726,8 +819,8 @@ function App({ vaultKey, initial, notice, onLock }: { vaultKey: CryptoKey; initi
 
 function Guide() {
   const steps: [string, string][] = [
-    ['Ищите', 'В 2ГИС или Яндекс Картах выберите город и нишу, например «натяжные потолки». Откройте карточки: нужны те, где нет сайта, но есть отзывы и фото, то есть бизнес живой.'],
-    ['Добавляйте', 'Название, телефон и ссылку на карточку. Удобно собрать 20–30 штук в таблицу и вставить списком.'],
+    ['Ищите', 'Соберите компании в GisFind или вручную в 2ГИС и Яндекс Картах: нужны те, где нет сайта, но есть отзывы и фото, то есть бизнес живой.'],
+    ['Добавляйте', 'Выгрузку GisFind (CSV или Excel) загрузите кнопкой «Загрузить CSV / Excel»: ниша определится по рубрике, компании с сайтом пропустятся. Можно и вставить списком.'],
     ['Пишите', 'Откройте лида, нажмите WhatsApp: сообщение уже вставлено, там персональная ссылка с его названием. Отправьте и нажмите «Отправил».'],
     ['Напоминайте', 'Через 2 и 5 дней лид снова появится в «На сегодня» с готовым напоминанием. После третьего сообщения без ответа закройте его.'],
     ['Отвечайте', 'Когда ответят, отметьте «Ответил» и возьмите готовый ответ на возражение. Цель первого разговора: получить 3–5 фото и сделать бесплатный первый экран.'],
