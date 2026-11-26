@@ -1,0 +1,722 @@
+import { StrictMode, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createRoot } from 'react-dom/client';
+import '../index.css';
+import '@/shared/kit/interaction-kit.js';
+import { NICHES } from '@/lib/niches';
+import {
+  SOURCES, STEP_LABEL, WAIT, fmtPhone, leadLink, message, normPhone, objections, tgUrl, waUrl, type Source,
+} from '@/lib/outreach';
+
+/* Private outreach tracker. Data lives only in this browser (localStorage); export a CSV to back it up
+   or move to another device. Messages are sent by hand: this page only prepares them. */
+
+type Status = 'todo' | 'sent' | 'reply' | 'deal' | 'no';
+type Lead = {
+  id: string;
+  niche: string;
+  name: string;
+  city: string;
+  phone: string;
+  tg: string;
+  card: string;
+  source: Source;
+  note: string;
+  status: Status;
+  /** how many of the 3 messages were sent */
+  step: number;
+  lastAt: number;
+  created: number;
+  log: { t: number; s: string }[];
+};
+
+const KEY = 'turch-leads-v1';
+const GOAL_KEY = 'turch-leads-goal';
+const DAY = 86_400_000;
+const STATUS: Record<Status, string> = { todo: 'Новый', sent: 'Ждём ответа', reply: 'Ответил', deal: 'Сделка', no: 'Отказ' };
+const STATUS_TONE: Record<Status, string> = {
+  todo: 'bg-[rgb(244_241_234/0.08)] text-tx-2',
+  sent: 'bg-[rgb(120_160_255/0.14)] text-[#b9caff]',
+  reply: 'bg-[rgb(255_107_26/0.16)] text-[#ffb48a]',
+  deal: 'bg-[rgb(80_200_120/0.16)] text-[#9be3b4]',
+  no: 'bg-[rgb(244_241_234/0.05)] text-tx-3',
+};
+
+const load = (): Lead[] => {
+  try {
+    const v = JSON.parse(localStorage.getItem(KEY) || '[]');
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+};
+const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
+const startOfDay = (t = Date.now()) => new Date(t).setHours(0, 0, 0, 0);
+const sourceFromUrl = (u: string): Source | '' => (/2gis/i.test(u) ? '2gis' : /yandex|ya\.ru/i.test(u) ? 'yandex' : '');
+
+/** When the next message is due (ms), or null when nothing is left to send. */
+function dueAt(l: Lead): number | null {
+  if (l.status === 'reply' || l.status === 'deal' || l.status === 'no') return null;
+  if (l.step === 0) return l.created;
+  if (l.step >= 3) return null;
+  return startOfDay(l.lastAt) + WAIT[l.step - 1] * DAY;
+}
+function nextLabel(l: Lead): string {
+  if (l.status === 'reply') return 'Ответил: ответьте ему';
+  if (l.status === 'deal') return 'Сделка';
+  if (l.status === 'no') return 'Закрыт';
+  if (l.step >= 3) return 'Не ответил на 3 сообщения: можно закрыть';
+  const d = dueAt(l)!;
+  const days = Math.round((startOfDay(d) - startOfDay()) / DAY);
+  const what = STEP_LABEL[l.step];
+  if (days <= 0) return `${what}: ${days < 0 ? `просрочено на ${-days} дн.` : 'сегодня'}`;
+  return `${what}: ${days === 1 ? 'завтра' : `через ${days} дн.`}`;
+}
+const isDue = (l: Lead) => {
+  const d = dueAt(l);
+  return d !== null && d < startOfDay() + DAY;
+};
+
+/* ─── CSV ─── */
+const COLS = ['Название', 'Ниша', 'Город', 'Телефон', 'Telegram', 'Карточка', 'Источник', 'Статус', 'Отправлено', 'Последнее', 'Заметка'] as const;
+const csvCell = (v: string) => (/[;"\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+function toCsv(ls: Lead[]) {
+  const rows = ls.map((l) =>
+    [l.name, l.niche, l.city, l.phone, l.tg, l.card, l.source, l.status, String(l.step), l.lastAt ? new Date(l.lastAt).toISOString() : '', l.note].map(csvCell).join(';'),
+  );
+  return '﻿' + [COLS.join(';'), ...rows].join('\r\n');
+}
+function parseCsv(text: string, sep: string): string[][] {
+  const out: string[][] = [];
+  let row: string[] = [];
+  let cell = '';
+  let q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+      else if (c === '"') q = false;
+      else cell += c;
+    } else if (c === '"' && cell === '') q = true;
+    else if (c === sep) { row.push(cell); cell = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(cell); cell = '';
+      if (row.some((x) => x.trim())) out.push(row);
+      row = [];
+    } else cell += c;
+  }
+  row.push(cell);
+  if (row.some((x) => x.trim())) out.push(row);
+  return out;
+}
+
+/** Turns pasted text (one company per line, or our own CSV export) into leads. */
+function parsePaste(text: string, defaults: { niche: string; city: string; source: Source }): Lead[] {
+  const t = text.replace(/^﻿/, '').trim();
+  if (!t) return [];
+  const first = t.split(/\r?\n/)[0];
+  const sep = first.includes('\t') ? '\t' : first.includes(';') ? ';' : ',';
+  const rows = parseCsv(t, sep);
+  const now = Date.now();
+  const base = (): Lead => ({
+    id: uid(), niche: defaults.niche, name: '', city: defaults.city, phone: '', tg: '', card: '', source: defaults.source,
+    note: '', status: 'todo', step: 0, lastAt: 0, created: now, log: [],
+  });
+  // our export (or any table with these headers)
+  const head = rows[0].map((h) => h.trim().toLowerCase());
+  if (head.includes('название')) {
+    const ix = (h: string) => head.indexOf(h.toLowerCase());
+    return rows.slice(1).map((r) => {
+      const g = (h: string) => (ix(h) >= 0 ? (r[ix(h)] || '').trim() : '');
+      const l = base();
+      l.name = g('Название');
+      l.niche = NICHES[g('Ниша')] ? g('Ниша') : defaults.niche;
+      l.city = g('Город') || defaults.city;
+      l.phone = g('Телефон');
+      l.tg = g('Telegram');
+      l.card = g('Карточка');
+      const src = g('Источник');
+      l.source = src === 'yandex' || src === '2gis' ? src : (sourceFromUrl(l.card) || defaults.source);
+      const st = g('Статус') as Status;
+      if (st in STATUS) l.status = st;
+      l.step = Math.min(3, Math.max(0, parseInt(g('Отправлено'), 10) || 0));
+      const last = Date.parse(g('Последнее'));
+      l.lastAt = Number.isFinite(last) ? last : 0;
+      l.note = g('Заметка');
+      return l;
+    }).filter((l) => l.name || l.phone);
+  }
+  // free-form: name; phone; city; link — in any order, each line split on its own separator
+  const lines = t.split(/\r?\n/).filter((x) => x.trim());
+  return lines.map((line) => line.split(/[\t;]/.test(line) ? /[\t;]/ : /,/)).map((cells) => {
+    const l = base();
+    const rest: string[] = [];
+    for (const raw of cells) {
+      const c = raw.trim();
+      if (!c) continue;
+      if (/^https?:\/\//i.test(c) || /2gis\.|yandex\./i.test(c)) {
+        if (/t\.me\//i.test(c)) l.tg = c;
+        else { l.card = c; l.source = sourceFromUrl(c) || l.source; }
+      } else if (/^@[a-z0-9_]{4,}$/i.test(c)) l.tg = c;
+      else if (!l.phone && normPhone(c)) l.phone = c;
+      else rest.push(c);
+    }
+    l.name = rest[0] || '';
+    if (rest[1]) l.city = rest[1];
+    if (rest.length > 2) l.note = rest.slice(2).join(', ');
+    return l;
+  }).filter((l) => l.name || l.phone);
+}
+
+/* ─── small parts ─── */
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const t = document.createElement('textarea');
+    t.value = text;
+    document.body.appendChild(t);
+    t.select();
+    document.execCommand('copy');
+    t.remove();
+  }
+}
+function CopyBtn({ text, label, primary }: { text: string; label: string; primary?: boolean }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      type="button"
+      className={`btn ${primary ? 'btn-a' : 'btn-b ui-press--on-dark'} ui-press ui-focus h-[44px] px-4 text-[15px]`}
+      onClick={async () => {
+        await copyText(text);
+        setDone(true);
+        window.setTimeout(() => setDone(false), 1500);
+      }}
+    >
+      {done ? 'Скопировано ✓' : label}
+    </button>
+  );
+}
+const field = 'w-full h-[46px] rounded-[11px] px-3.5 text-[16px] bg-bg text-tx outline-none ui-focus';
+const ring = { boxShadow: 'inset 0 0 0 1px var(--line)' };
+function Field({ label, children, className = '' }: { label: string; children: ReactNode; className?: string }) {
+  return (
+    <label className={`grid min-w-0 gap-1.5 text-[14px] text-tx-3 ${className}`}>
+      {label}
+      {children}
+    </label>
+  );
+}
+function NicheSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <select className={field} style={ring} value={value} onChange={(e) => onChange(e.target.value)}>
+      {Object.entries(NICHES).map(([k, v]) => (
+        <option key={k} value={k}>{v.label}</option>
+      ))}
+    </select>
+  );
+}
+function SourceSelect({ value, onChange }: { value: Source; onChange: (v: Source) => void }) {
+  return (
+    <select className={field} style={ring} value={value} onChange={(e) => onChange(e.target.value as Source)}>
+      <option value="2gis">2ГИС</option>
+      <option value="yandex">Яндекс Карты</option>
+    </select>
+  );
+}
+
+/* ─── add form ─── */
+function AddPanel({ onAdd }: { onAdd: (ls: Lead[]) => number }) {
+  const [mode, setMode] = useState<'one' | 'list'>('one');
+  const [niche, setNiche] = useState('potolki');
+  const [source, setSource] = useState<Source>('2gis');
+  const [city, setCity] = useState('');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [tg, setTg] = useState('');
+  const [card, setCard] = useState('');
+  const [paste, setPaste] = useState('');
+  const [msg, setMsg] = useState('');
+  const preview = useMemo(() => (mode === 'list' ? parsePaste(paste, { niche, city, source }) : []), [mode, paste, niche, city, source]);
+
+  const addOne = () => {
+    if (!name.trim() && !phone.trim()) { setMsg('Нужно название или телефон'); return; }
+    const n = onAdd([{
+      id: uid(), niche, name: name.trim(), city: city.trim(), phone: phone.trim(), tg: tg.trim(), card: card.trim(),
+      source: sourceFromUrl(card) || source, note: '', status: 'todo', step: 0, lastAt: 0, created: Date.now(), log: [],
+    }]);
+    setMsg(n ? `Добавлен «${name.trim() || fmtPhone(phone)}»` : 'Такой лид уже есть');
+    if (n) { setName(''); setPhone(''); setTg(''); setCard(''); }
+  };
+  const addList = () => {
+    const n = onAdd(preview);
+    setMsg(`Добавлено: ${n}${preview.length - n ? `, пропущено повторов: ${preview.length - n}` : ''}`);
+    if (n) setPaste('');
+  };
+
+  return (
+    <section className="rounded-[18px] bg-bg-2 p-5 md:p-6" style={ring} aria-labelledby="add-title">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="add-title" className="h3 m-0">Добавить лидов</h2>
+        <div className="flex rounded-[12px] bg-bg p-1" style={ring} role="tablist">
+          {(['one', 'list'] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="tab"
+              aria-selected={mode === m}
+              className={`ui-press ui-focus h-[36px] rounded-[9px] px-4 text-[15px] font-medium ${mode === m ? 'bg-bg-3 text-tx' : 'text-tx-3'}`}
+              onClick={() => { setMode(m); setMsg(''); }}
+            >
+              {m === 'one' ? 'По одному' : 'Списком'}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <Field label="Ниша"><NicheSelect value={niche} onChange={setNiche} /></Field>
+        <Field label="Город"><input className={field} style={ring} value={city} maxLength={42} placeholder="Барнаул" onChange={(e) => setCity(e.target.value)} /></Field>
+        <Field label="Где нашли"><SourceSelect value={source} onChange={setSource} /></Field>
+      </div>
+      {mode === 'one' ? (
+        <>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <Field label="Название"><input className={field} style={ring} value={name} maxLength={42} placeholder="Потолки Люкс" onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addOne()} /></Field>
+            <Field label="Телефон (для WhatsApp)"><input className={field} style={ring} value={phone} inputMode="tel" placeholder="+7 900 000-00-00" onChange={(e) => setPhone(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addOne()} /></Field>
+            <Field label="Telegram, если есть"><input className={field} style={ring} value={tg} placeholder="@username" onChange={(e) => setTg(e.target.value)} /></Field>
+            <Field label="Ссылка на карточку"><input className={field} style={ring} value={card} inputMode="url" placeholder="https://2gis.ru/…" onChange={(e) => setCard(e.target.value)} /></Field>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <button type="button" className="btn btn-a ui-press ui-focus h-[46px]" onClick={addOne}>Добавить</button>
+            <span className="text-[15px] text-tx-2" aria-live="polite">{msg}</span>
+          </div>
+        </>
+      ) : (
+        <>
+          <Field label="Одна компания на строку: название; телефон; ссылка. Можно вставить столбцы из таблицы или CSV, выгруженный отсюда" className="mt-3">
+            <textarea
+              className="min-h-[150px] w-full rounded-[11px] bg-bg p-3.5 font-mono text-[14px] text-tx outline-none ui-focus"
+              style={ring}
+              value={paste}
+              placeholder={'Потолки Люкс; +7 913 000-00-00; https://2gis.ru/barnaul/firm/…\nНебо Потолки; 8 (3852) 00-00-00'}
+              onChange={(e) => setPaste(e.target.value)}
+            />
+          </Field>
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <button type="button" className="btn btn-a ui-press ui-focus h-[46px]" disabled={!preview.length} onClick={addList}>
+              {preview.length ? `Добавить ${preview.length}` : 'Добавить'}
+            </button>
+            <span className="text-[15px] text-tx-2" aria-live="polite">
+              {msg || (preview.length ? `Первый: ${preview[0].name || '—'}${preview[0].phone ? `, ${fmtPhone(preview[0].phone)}` : ''}` : '')}
+            </span>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+/* ─── one lead ─── */
+function LeadCard({ l, open, onToggle, update, remove, onSent }: {
+  l: Lead; open: boolean; onToggle: () => void; update: (p: Partial<Lead>, log?: string) => void; remove: () => void; onSent: () => void;
+}) {
+  const stepNow = Math.min(l.step, 2);
+  const [step, setStep] = useState(stepNow);
+  const [opened, setOpened] = useState(false);
+  const [obj, setObj] = useState<number | null>(null);
+  useEffect(() => { setStep(stepNow); setOpened(false); }, [stepNow, open]);
+  const text = message(l, step);
+  const wa = waUrl(l.phone, text);
+  const tgu = tgUrl(l.tg, l.phone);
+  const due = isDue(l);
+  const canSend = l.status === 'todo' || l.status === 'sent';
+
+  const markSent = () => {
+    const s = Math.max(l.step, step + 1);
+    update({ step: s, lastAt: Date.now(), status: 'sent' }, `msg${step}`);
+    onSent();
+  };
+
+  return (
+    <li className="rounded-[16px] bg-bg-2" style={{ boxShadow: `inset 0 0 0 1px ${open ? 'rgb(255 107 26 / 0.4)' : 'var(--line)'}` }}>
+      <button type="button" className="ui-focus flex w-full items-center gap-4 rounded-[16px] p-4 text-left md:px-5" aria-expanded={open} onClick={onToggle}>
+        <span className={`size-2.5 shrink-0 rounded-full ${due ? 'bg-accent' : 'bg-transparent'}`} aria-hidden="true" />
+        <span className="grid min-w-0 flex-1 gap-0.5">
+          <span className="truncate text-[17px] font-semibold">{l.name || fmtPhone(l.phone)}</span>
+          <span className="truncate text-[14px] text-tx-3">
+            {NICHES[l.niche]?.label ?? l.niche}{l.city ? ` · ${l.city}` : ''}{l.phone ? ` · ${fmtPhone(l.phone)}` : ''}
+          </span>
+        </span>
+        <span className={`hidden text-[14px] sm:block ${due ? 'text-[#ffb48a]' : 'text-tx-3'}`}>{nextLabel(l)}</span>
+        <span className={`shrink-0 rounded-full px-3 py-1 text-[13px] font-medium ${STATUS_TONE[l.status]}`}>{STATUS[l.status]}</span>
+      </button>
+
+      {open && (
+        <div className="grid gap-5 border-t border-[var(--line)] p-4 md:p-5">
+          <p className={`m-0 text-[14px] sm:hidden ${due ? 'text-[#ffb48a]' : 'text-tx-3'}`}>{nextLabel(l)}</p>
+
+          <div>
+            <div className="flex flex-wrap gap-2" role="tablist" aria-label="Сообщение">
+              {STEP_LABEL.map((t, i) => (
+                <button
+                  key={t}
+                  type="button"
+                  role="tab"
+                  aria-selected={step === i}
+                  className={`ui-press ui-focus h-[34px] rounded-full px-3.5 text-[14px] ${step === i ? 'bg-tx text-bg' : 'text-tx-2'}`}
+                  style={step === i ? undefined : ring}
+                  onClick={() => setStep(i)}
+                >
+                  {i < l.step ? '✓ ' : ''}{t}
+                </button>
+              ))}
+            </div>
+            <p className="mb-0 mt-3 whitespace-pre-wrap rounded-[12px] bg-bg p-4 text-[15px] leading-relaxed [overflow-wrap:anywhere]" style={ring}>{text}</p>
+            <div className="mt-3 flex flex-wrap gap-2.5">
+              {wa && (
+                <a className="btn btn-a ui-press ui-focus h-[44px] px-4 text-[15px]" href={wa} target="_blank" rel="noopener" onClick={() => setOpened(true)}>
+                  Открыть в WhatsApp
+                </a>
+              )}
+              {tgu && (
+                <a
+                  className={`btn ${wa ? 'btn-b ui-press--on-dark' : 'btn-a'} ui-press ui-focus h-[44px] px-4 text-[15px]`}
+                  href={tgu}
+                  target="_blank"
+                  rel="noopener"
+                  title="Текст скопируется, вставьте его в чат"
+                  onClick={() => { void copyText(text); setOpened(true); }}
+                >
+                  Telegram (текст скопирован)
+                </a>
+              )}
+              <CopyBtn text={text} label="Скопировать" primary={!wa && !tgu} />
+              <a className="btn btn-b ui-press ui-press--on-dark ui-focus h-[44px] px-4 text-[15px]" href={leadLink(l)} target="_blank" rel="noopener">Как видит лид ↗</a>
+              {l.card && <a className="btn btn-b ui-press ui-press--on-dark ui-focus h-[44px] px-4 text-[15px]" href={l.card} target="_blank" rel="noopener">Карточка ↗</a>}
+            </div>
+            {canSend && step >= l.step && (
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  className={`btn ui-press ui-focus h-[44px] px-4 text-[15px] ${opened ? 'btn-a' : 'btn-b ui-press--on-dark'}`}
+                  onClick={markSent}
+                >
+                  Отправил ✓
+                </button>
+                <span className="text-[14px] text-tx-3">
+                  {step < 2 ? `Следующее напоминание через ${WAIT[step]} дн.` : 'Это последнее сообщение'}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-[14px] text-tx-3">Статус</span>
+            {(Object.keys(STATUS) as Status[]).map((s) => (
+              <button
+                key={s}
+                type="button"
+                aria-pressed={l.status === s}
+                className={`ui-press ui-focus h-[34px] rounded-full px-3.5 text-[14px] ${l.status === s ? STATUS_TONE[s] + ' font-semibold' : 'text-tx-2'}`}
+                style={l.status === s ? undefined : ring}
+                onClick={() => update({ status: s }, `status:${s}`)}
+              >
+                {STATUS[s]}
+              </button>
+            ))}
+          </div>
+
+          <div>
+            <div className="text-[14px] text-tx-3">Если ответил</div>
+            <ul className="m-0 mt-2 grid list-none gap-2 p-0">
+              {objections(l).map(([q, a], i) => (
+                <li key={q} className="rounded-[12px] bg-bg" style={ring}>
+                  <button type="button" className="ui-focus flex w-full items-center justify-between gap-3 rounded-[12px] px-4 py-3 text-left text-[15px] font-medium" aria-expanded={obj === i} onClick={() => setObj(obj === i ? null : i)}>
+                    {q}
+                    <span className={`text-tx-3 transition-transform ${obj === i ? 'rotate-45' : ''}`} aria-hidden="true">+</span>
+                  </button>
+                  {obj === i && (
+                    <div className="px-4 pb-4">
+                      <p className="m-0 whitespace-pre-wrap text-[15px] leading-relaxed text-tx-2 [overflow-wrap:anywhere]">{a}</p>
+                      <div className="mt-3"><CopyBtn text={a} label="Скопировать ответ" /></div>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Field label="Название"><input className={field} style={ring} value={l.name} maxLength={42} onChange={(e) => update({ name: e.target.value })} /></Field>
+            <Field label="Город"><input className={field} style={ring} value={l.city} maxLength={42} onChange={(e) => update({ city: e.target.value })} /></Field>
+            <Field label="Ниша"><NicheSelect value={l.niche} onChange={(v) => update({ niche: v })} /></Field>
+            <Field label="Телефон"><input className={field} style={ring} value={l.phone} inputMode="tel" onChange={(e) => update({ phone: e.target.value })} /></Field>
+            <Field label="Telegram"><input className={field} style={ring} value={l.tg} placeholder="@username" onChange={(e) => update({ tg: e.target.value })} /></Field>
+            <Field label="Где нашли"><SourceSelect value={l.source} onChange={(v) => update({ source: v })} /></Field>
+            <Field label="Ссылка на карточку" className="sm:col-span-2 lg:col-span-3"><input className={field} style={ring} value={l.card} inputMode="url" onChange={(e) => update({ card: e.target.value })} /></Field>
+            <Field label="Заметка" className="sm:col-span-2 lg:col-span-3">
+              <textarea className="min-h-[76px] w-full rounded-[11px] bg-bg p-3.5 text-[16px] text-tx outline-none ui-focus" style={ring} value={l.note} placeholder="Что ответил, когда перезвонить, что прислал" onChange={(e) => update({ note: e.target.value })} />
+            </Field>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 text-[14px] text-tx-3">
+            <span>
+              Добавлен {new Date(l.created).toLocaleDateString('ru-RU')}
+              {l.lastAt ? ` · последнее сообщение ${new Date(l.lastAt).toLocaleDateString('ru-RU')}` : ''}
+            </span>
+            <button
+              type="button"
+              className="ui-press ui-focus h-[36px] rounded-[10px] px-3 text-[14px] text-tx-3 hover:text-[#ff8f8f]"
+              onClick={() => { if (window.confirm(`Удалить «${l.name || l.phone}»?`)) remove(); }}
+            >
+              Удалить лида
+            </button>
+          </div>
+        </div>
+      )}
+    </li>
+  );
+}
+
+/* ─── page ─── */
+type Tab = 'today' | 'wait' | 'reply' | 'deal' | 'no' | 'all';
+const TABS: [Tab, string][] = [['today', 'На сегодня'], ['wait', 'Ждём ответа'], ['reply', 'Ответили'], ['deal', 'Сделки'], ['no', 'Отказ'], ['all', 'Все']];
+
+function App() {
+  const [leads, setLeads] = useState<Lead[]>(load);
+  const [tab, setTab] = useState<Tab>('today');
+  const [query, setQuery] = useState('');
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [goal, setGoal] = useState(() => {
+    try { return Number(localStorage.getItem(GOAL_KEY)) || 25; } catch { return 25; }
+  });
+  const [saveErr, setSaveErr] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    try { localStorage.setItem(KEY, JSON.stringify(leads)); setSaveErr(false); } catch { setSaveErr(true); }
+  }, [leads]);
+  useEffect(() => { try { localStorage.setItem(GOAL_KEY, String(goal)); } catch { /* per-browser convenience only */ } }, [goal]);
+
+  const add = (ls: Lead[]) => {
+    const keyOf = (l: Lead) => normPhone(l.phone) || `${l.name.trim().toLowerCase()}|${l.city.trim().toLowerCase()}`;
+    const seen = new Set(leads.map(keyOf));
+    const fresh = ls.filter((l) => { const k = keyOf(l); if (seen.has(k)) return false; seen.add(k); return true; });
+    if (fresh.length) setLeads((p) => [...fresh, ...p]);
+    return fresh.length;
+  };
+  const update = (id: string) => (p: Partial<Lead>, log?: string) =>
+    setLeads((ls) => ls.map((l) => (l.id === id ? { ...l, ...p, log: log ? [...l.log, { t: Date.now(), s: log }] : l.log } : l)));
+  const remove = (id: string) => setLeads((ls) => ls.filter((l) => l.id !== id));
+
+  const today = startOfDay();
+  const sentToday = leads.reduce((n, l) => n + l.log.filter((e) => e.s.startsWith('msg') && e.t >= today).length, 0);
+  const firstToday = leads.reduce((n, l) => n + l.log.filter((e) => e.s === 'msg0' && e.t >= today).length, 0);
+  const count = {
+    today: leads.filter(isDue).length,
+    wait: leads.filter((l) => l.status === 'sent').length,
+    reply: leads.filter((l) => l.status === 'reply').length,
+    deal: leads.filter((l) => l.status === 'deal').length,
+    no: leads.filter((l) => l.status === 'no').length,
+    all: leads.length,
+  };
+  const followDue = leads.filter((l) => isDue(l) && l.step > 0).length;
+  const contacted = leads.filter((l) => l.step > 0).length;
+  const replied = leads.filter((l) => l.status === 'reply' || l.status === 'deal' || l.log.some((e) => e.s === 'status:reply')).length;
+
+  const list = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let ls = leads.filter((l) => {
+      if (tab === 'today') return isDue(l);
+      if (tab === 'wait') return l.status === 'sent';
+      if (tab === 'all') return true;
+      return l.status === tab;
+    });
+    if (q) ls = ls.filter((l) => `${l.name} ${l.city} ${l.phone} ${l.note}`.toLowerCase().includes(q));
+    if (tab === 'today') {
+      // follow-ups first (they go stale), then new leads in the order they were added
+      ls = [...ls].sort((a, b) => (b.step > 0 ? 1 : 0) - (a.step > 0 ? 1 : 0) || (dueAt(a)! - dueAt(b)!) || a.created - b.created);
+    } else if (tab === 'wait') {
+      ls = [...ls].sort((a, b) => (dueAt(a) ?? Infinity) - (dueAt(b) ?? Infinity));
+    }
+    return ls;
+  }, [leads, tab, query]);
+
+  const exportCsv = () => {
+    const blob = new Blob([toCsv(leads)], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `leads-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+  const [importMsg, setImportMsg] = useState('');
+  const importCsv = async (f: File) => {
+    const text = await f.text();
+    const ls = parsePaste(text, { niche: 'potolki', city: '', source: '2gis' });
+    const n = add(ls);
+    setImportMsg(`Из файла добавлено: ${n}${ls.length - n ? `, уже были: ${ls.length - n}` : ''}`);
+  };
+
+  const pct = Math.min(100, Math.round((sentToday / Math.max(1, goal)) * 100));
+
+  return (
+    <main className="wrap max-w-[1080px] pb-24 pt-8 md:pt-12">
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-baseline gap-3">
+          <a href={import.meta.env.BASE_URL} className="font-display text-[19px] font-extrabold tracking-[0.1em] text-tx no-underline">TURCH</a>
+          <span className="text-[15px] text-tx-3">лиды</span>
+        </div>
+        <div className="flex flex-wrap gap-2.5">
+          <button type="button" className="btn btn-b ui-press ui-press--on-dark ui-focus h-[42px] px-4 text-[15px]" onClick={exportCsv} disabled={!leads.length}>Скачать CSV</button>
+          <button type="button" className="btn btn-b ui-press ui-press--on-dark ui-focus h-[42px] px-4 text-[15px]" onClick={() => fileRef.current?.click()}>Загрузить CSV</button>
+          <input ref={fileRef} type="file" accept=".csv,text/csv,text/plain" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void importCsv(f); e.target.value = ''; }} />
+        </div>
+      </header>
+      {(importMsg || saveErr) && (
+        <p className="mb-0 mt-3 text-[15px] text-tx-2" aria-live="polite">
+          {saveErr ? 'Браузер не даёт сохранять данные (приватный режим?). Скачайте CSV, чтобы ничего не потерять.' : importMsg}
+        </p>
+      )}
+
+      <section className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Сводка">
+        <div className="rounded-[18px] bg-bg-2 p-5 sm:col-span-2" style={ring}>
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-[15px] text-tx-2">Отправлено сегодня</span>
+            <label className="flex items-center gap-2 text-[14px] text-tx-3">
+              цель
+              <input
+                type="number"
+                min={1}
+                max={60}
+                className="ui-focus h-[30px] w-[58px] rounded-[8px] bg-bg px-2 text-[15px] text-tx outline-none"
+                style={ring}
+                value={goal}
+                onChange={(e) => setGoal(Math.max(1, Math.min(60, Number(e.target.value) || 1)))}
+              />
+            </label>
+          </div>
+          <div className="mt-2 font-display text-[40px] font-extrabold leading-none tabular-nums">
+            {sentToday}<span className="text-[22px] text-tx-3"> / {goal}</span>
+          </div>
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-bg" role="progressbar" aria-valuenow={sentToday} aria-valuemin={0} aria-valuemax={goal} aria-label="Прогресс за день">
+            <div className="h-full rounded-full bg-accent transition-[width] duration-500" style={{ width: `${pct}%` }} />
+          </div>
+          <p className="mb-0 mt-3 text-[14px] text-tx-3">
+            Новых {firstToday}, напоминаний {sentToday - firstToday}. Больше 30 в день с одного номера лучше не отправлять: WhatsApp может ограничить аккаунт.
+          </p>
+        </div>
+        <div className="rounded-[18px] bg-bg-2 p-5" style={ring}>
+          <div className="text-[15px] text-tx-2">Пора напомнить</div>
+          <div className={`mt-2 font-display text-[40px] font-extrabold leading-none tabular-nums ${followDue ? 'text-accent' : ''}`}>{followDue}</div>
+          <p className="mb-0 mt-3 text-[14px] text-tx-3">Напоминания через 2 и 5 дней</p>
+        </div>
+        <div className="rounded-[18px] bg-bg-2 p-5" style={ring}>
+          <div className="text-[15px] text-tx-2">Ответили</div>
+          <div className="mt-2 font-display text-[40px] font-extrabold leading-none tabular-nums">
+            {replied}<span className="text-[22px] text-tx-3"> из {contacted}</span>
+          </div>
+          <p className="mb-0 mt-3 text-[14px] text-tx-3">Сделок: {count.deal}</p>
+        </div>
+      </section>
+
+      <div className="mt-6">
+        <AddPanel onAdd={add} />
+      </div>
+
+      <section className="mt-10" aria-labelledby="list-title">
+        <h2 id="list-title" className="sr-only">Лиды</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1 pb-1" role="tablist" aria-label="Фильтр">
+            {TABS.map(([k, t]) => (
+              <button
+                key={k}
+                type="button"
+                role="tab"
+                aria-selected={tab === k}
+                className={`ui-press ui-focus h-[38px] shrink-0 rounded-full px-4 text-[15px] font-medium ${tab === k ? 'bg-tx text-bg' : 'text-tx-2'}`}
+                onClick={() => setTab(k)}
+              >
+                {t} <span className={tab === k ? 'text-bg/60' : 'text-tx-3'}>{count[k]}</span>
+              </button>
+            ))}
+          </div>
+          <input
+            className="ui-focus h-[40px] w-full rounded-full bg-bg-2 px-4 text-[15px] text-tx outline-none sm:w-[240px]"
+            style={ring}
+            type="search"
+            placeholder="Поиск"
+            aria-label="Поиск по лидам"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+
+        {list.length ? (
+          <ul className="m-0 mt-4 grid list-none gap-2.5 p-0">
+            {list.map((l) => (
+              <LeadCard
+                key={l.id}
+                l={l}
+                open={openId === l.id}
+                onToggle={() => setOpenId(openId === l.id ? null : l.id)}
+                update={update(l.id)}
+                remove={() => remove(l.id)}
+                onSent={() => {
+                  // in «На сегодня» the sent lead leaves the list: open the next one right away
+                  if (tab !== 'today') return;
+                  const i = list.findIndex((x) => x.id === l.id);
+                  setOpenId(list[i + 1]?.id ?? null);
+                }}
+              />
+            ))}
+          </ul>
+        ) : (
+          <div className="mt-4 rounded-[16px] p-8 text-center text-[16px] text-tx-2" style={{ boxShadow: 'inset 0 0 0 1px var(--line)', borderStyle: 'dashed' }}>
+            {!leads.length
+              ? 'Пока пусто. Найдите в 2ГИС или на Яндекс Картах компании без сайта и добавьте их выше.'
+              : tab === 'today'
+                ? 'На сегодня всё отправлено. Добавьте новых лидов или загляните завтра.'
+                : 'Здесь пока никого.'}
+          </div>
+        )}
+      </section>
+
+      <Guide />
+    </main>
+  );
+}
+
+function Guide() {
+  const steps: [string, string][] = [
+    ['Ищите', 'В 2ГИС или Яндекс Картах выберите город и нишу, например «натяжные потолки». Откройте карточки: нужны те, где нет сайта, но есть отзывы и фото, то есть бизнес живой.'],
+    ['Добавляйте', 'Название, телефон и ссылку на карточку. Удобно собрать 20–30 штук в таблицу и вставить списком.'],
+    ['Пишите', 'Откройте лида, нажмите WhatsApp: сообщение уже вставлено, там персональная ссылка с его названием. Отправьте и нажмите «Отправил».'],
+    ['Напоминайте', 'Через 2 и 5 дней лид снова появится в «На сегодня» с готовым напоминанием. После третьего сообщения без ответа закройте его.'],
+    ['Отвечайте', 'Когда ответят, отметьте «Ответил» и возьмите готовый ответ на возражение. Цель первого разговора: получить 3–5 фото и сделать бесплатный первый экран.'],
+  ];
+  return (
+    <section className="mt-16 border-t border-[var(--line)] pt-10" aria-labelledby="guide-title">
+      <h2 id="guide-title" className="h3 m-0">Как работать</h2>
+      <ol className="m-0 mt-5 grid list-none gap-4 p-0 md:grid-cols-5">
+        {steps.map(([t, d], i) => (
+          <li key={t} className="grid content-start gap-2">
+            <span className="font-display text-[15px] font-extrabold text-accent tabular-nums">0{i + 1}</span>
+            <span className="text-[17px] font-semibold">{t}</span>
+            <span className="text-[15px] leading-relaxed text-tx-2">{d}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="mb-0 mt-8 max-w-[760px] text-[14px] leading-relaxed text-tx-3">
+        Данные хранятся только в этом браузере. Раз в несколько дней скачивайте CSV: если почистить историю или открыть сайт на другом устройстве, список будет пустым, и его можно загрузить из файла.
+      </p>
+    </section>
+  );
+}
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);
+(window as unknown as { BetterUI?: { init: (d: Document) => void } }).BetterUI?.init(document);

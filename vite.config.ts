@@ -18,6 +18,7 @@ export default defineConfig({
         potolki: r('./potolki/index.html'),
         mebel: r('./mebel/index.html'),
         link: r('./link/index.html'),
+        leads: r('./leads/index.html'),
         vyveski: r('./vyveski/index.html'),
         kuzov: r('./kuzov/index.html'),
         kuhni: r('./kuhni/index.html'),

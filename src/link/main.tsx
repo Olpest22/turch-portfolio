@@ -3,18 +3,11 @@ import { createRoot } from 'react-dom/client';
 import '../index.css';
 import '@/shared/kit/interaction-kit.js';
 import { BASE } from '@/lib/base';
+import { NICHES } from '@/lib/niches';
+import { leadLink, message } from '@/lib/outreach';
 
-/* Private helper for outreach: builds a personalised portfolio link and a first message. */
-const NICHES: [string, string][] = [
-  ['remont', 'Ремонт квартир'],
-  ['doma', 'Строительство домов'],
-  ['potolki', 'Натяжные потолки'],
-  ['kuhni', 'Кухни на заказ'],
-  ['mebel', 'Мебель на заказ'],
-  ['vyveski', 'Изготовление вывесок'],
-  ['reklama', 'Наружная реклама'],
-  ['kuzov', 'Кузовной ремонт авто'],
-];
+/* Private helper for outreach: builds a personalised portfolio link and a first message.
+   The full tracker with follow-ups lives at /leads/. */
 
 function Copy({ text, label }: { text: string; label: string }) {
   const [done, setDone] = useState(false);
@@ -46,25 +39,20 @@ function App() {
   const [n, setN] = useState('potolki');
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
-  const link = useMemo(() => {
-    const p = new URLSearchParams({ n });
-    if (name.trim()) p.set('name', name.trim());
-    if (city.trim()) p.set('city', city.trim());
-    return `${window.location.origin}${BASE}?${p.toString()}`;
-  }, [n, name, city]);
-  const msg = `Здравствуйте! Нашёл ${name.trim() ? `«${name.trim()}»` : 'вашу компанию'} на Яндекс Картах и заметил, что у вас нет сайта. Показал, каким он мог бы быть — там уже ваше название: ${link}\n\nЕсли интересно, за 24 часа бесплатно сделаю первый экран сайта под вас.`;
+  const link = useMemo(() => leadLink({ niche: n, name, city }), [n, name, city]);
+  const msg = message({ niche: n, name, city, source: 'yandex' }, 0);
   const field = 'w-full h-[52px] rounded-[12px] px-4 text-[16px] bg-[var(--bg-2)] text-[var(--tx)] outline-none';
   return (
     <main className="wrap max-w-[760px] py-12">
       <div className="font-display text-[19px] font-extrabold tracking-[0.1em]">TURCH</div>
       <h1 className="h2 m-0 mt-8">Ссылка для лида</h1>
-      <p className="lead mt-3">Лид откроет главную, где уже будут его название, город и пример сайта его ниши.</p>
+      <p className="lead mt-3">Лид откроет главную, где уже будут его название, город и пример сайта его ниши. Полный трекер с напоминаниями: <a className="text-accent" href={`${BASE}leads/`}>лиды</a>.</p>
       <div className="mt-8 grid gap-4">
         <label className="grid gap-2 text-[15px] text-tx-2">
           Ниша
           <select className={field} style={{ boxShadow: 'inset 0 0 0 1px var(--line)' }} value={n} onChange={(e) => setN(e.target.value)}>
-            {NICHES.map(([k, t]) => (
-              <option key={k} value={k}>{t}</option>
+            {Object.entries(NICHES).map(([k, v]) => (
+              <option key={k} value={k}>{v.label}</option>
             ))}
           </select>
         </label>

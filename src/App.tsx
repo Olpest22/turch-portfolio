@@ -1,20 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { TG_HANDLE } from './lib/contact';
+import { NICHES, type Demo } from './lib/niches';
 import { BASE } from '@/lib/base';
 
 /* ───────────────────────── lead personalisation ─────────────────────────
    Outreach links look like  /?n=potolki&name=Потолки%20Люкс&city=Барнаул   (see /link/) */
-type Demo = 'remont' | 'potolki' | 'mebel' | 'kuhni' | 'vyveski' | 'kuzov';
-const NICHES: Record<string, { label: string; demo: Demo }> = {
-  remont: { label: 'Ремонт квартир', demo: 'remont' },
-  doma: { label: 'Строительство домов', demo: 'remont' },
-  potolki: { label: 'Натяжные потолки', demo: 'potolki' },
-  kuhni: { label: 'Кухни на заказ', demo: 'kuhni' },
-  mebel: { label: 'Мебель на заказ', demo: 'mebel' },
-  vyveski: { label: 'Изготовление вывесок', demo: 'vyveski' },
-  reklama: { label: 'Наружная реклама', demo: 'vyveski' },
-  kuzov: { label: 'Кузовной ремонт авто', demo: 'kuzov' },
-};
 const q = new URLSearchParams(window.location.search);
 const clean = (v: string | null) => (v || '').replace(/\s+/g, ' ').trim().slice(0, 42);
 const LEAD = {
