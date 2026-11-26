@@ -6,11 +6,12 @@ const BRAND = brandOr('Глянец');
 const CITY = cityOr('Москва и область');
 import type { Light, Texture } from './Room3D';
 import ShinyText from '@/shared/rb/ShinyText';
+import { BASE } from '@/lib/base';
 
 const Room3D = lazy(() => import('./Room3D'));
-const IMG = (n: string) => `/img/potolki/${n}.webp`;
-const MD = (n: string) => `/img/potolki/${n}-md.webp`;
-const VIDEO = '/video/surface.mp4';
+const IMG = (n: string) => `${BASE}img/potolki/${n}.webp`;
+const MD = (n: string) => `${BASE}img/potolki/${n}-md.webp`;
+const VIDEO = `${BASE}video/surface.mp4`;
 const PHONE = '+7 (900) 000-00-00';
 
 /* ───────────── scroll-scrubbed surface hero (Cast & Render) ───────────── */
@@ -215,7 +216,7 @@ function ScrubHero() {
       <i ref={meter} className="fixed left-0 top-0 z-50 h-[2px] w-full origin-left bg-fg opacity-55" style={{ transform: 'scaleX(0)' }} />
       <section ref={track} className="relative" style={{ height: '460vh', minHeight: 2800 }} aria-label="Главный экран">
         <div className="sticky top-0 h-[100svh] overflow-hidden">
-          <video ref={clip} muted playsInline preload="auto" poster="/video/surface-poster.webp" disablePictureInPicture className="absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 scale-[1.02] object-cover" style={{ filter: 'contrast(1.02)' }} />
+          <video ref={clip} muted playsInline preload="auto" poster={`${BASE}video/surface-poster.webp`} disablePictureInPicture className="absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 scale-[1.02] object-cover" style={{ filter: 'contrast(1.02)' }} />
           <div className="stage-veil" />
           <div className="grain" />
           {PANELS.map((p, i) => (

@@ -3,12 +3,13 @@ import Masonry from '@/shared/rb/Masonry';
 import Magnet from '@/shared/rb/Magnet';
 import { DemoBadge, fakeSubmit, formatPhone, rub, type LeadState } from '@/shared/DemoBadge';
 import { brandOr, cityOr, EMBED } from '@/shared/brand';
+import { BASE } from '@/lib/base';
 
 const BRAND = brandOr('Форма и шпон');
 const CITY = cityOr('Москва и область');
 
-const IMG = (n: string) => `/img/mebel/${n}.webp`;
-const MD = (n: string) => `/img/mebel/${n}-md.webp`;
+const IMG = (n: string) => `${BASE}img/mebel/${n}.webp`;
+const MD = (n: string) => `${BASE}img/mebel/${n}-md.webp`;
 const PHONE = '+7 (900) 000-00-00';
 
 function Logo({ size = 28 }: { size?: number }) {

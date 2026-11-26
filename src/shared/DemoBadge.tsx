@@ -1,9 +1,10 @@
+import { BASE } from '@/lib/base';
 /** Floating label that marks a demo site and links back to the TURCH portfolio. */
 export function DemoBadge({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
   const dark = tone === 'dark';
   return (
     <a
-      href="/#works"
+      href={`${BASE}#examples`}
       className="ui-press ui-focus fixed bottom-4 left-4 z-[80] inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-[13px] font-medium no-underline shadow-lg"
       style={{
         background: dark ? 'rgb(10 9 8 / 0.94)' : 'rgb(255 255 255 / 0.97)',

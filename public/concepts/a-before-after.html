@@ -44,7 +44,7 @@
   .old-body { display: grid; grid-template-columns: 1fr 300px; gap: 24px; padding: 24px 60px; }
   .old-main h1 { font: bold 38px/1.15 'Times New Roman', serif; color: #1d4f8c; margin: 0 0 14px; letter-spacing: 0; }
   .old-main h1 b { color: #c0161d; }
-  .old-photo { height: 300px; border: 6px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.35); background: url(/img/remont/raw-md.webp) center / cover; position: relative; }
+  .old-photo { height: 300px; border: 6px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.35); background: url(../img/remont/raw-md.webp) center / cover; position: relative; }
   .old-photo em { position: absolute; right: -12px; top: 16px; transform: rotate(8deg); background: #c0161d; color: #fff; font: bold 24px Arial; padding: 12px 16px; border: 3px dashed #fff; font-style: normal; }
   .old-main ul { padding: 0; list-style: none; margin: 16px 0; columns: 2; font-size: 17px; line-height: 2; }
   .old-main li::before { content: '✔ '; color: #2a9d2a; font-weight: bold; }
@@ -123,7 +123,7 @@
     canvas.style.setProperty('--cw', cw + 'px'); canvas.style.setProperty('--ch', ch + 'px');
     canvas.style.setProperty('--s', win.clientWidth / cw);
     old.classList.toggle('phone', phone);
-    after.style.backgroundImage = `url(/shots/remont-hero${phone ? '-m' : ''}.webp)`;
+    after.style.backgroundImage = `url(../shots/remont-hero${phone ? '-m' : ''}.webp)`;
   };
   new ResizeObserver(fit).observe(win); fit();
   let x = 88, target = 88, raf = 0, touched = false, drag = false;

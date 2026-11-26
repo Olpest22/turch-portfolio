@@ -4,13 +4,14 @@ import FlowingMenu from '@/shared/rb/FlowingMenu';
 import BlurText from '@/shared/rb/BlurText';
 import { DemoBadge, fakeSubmit, formatPhone, rub, type LeadState } from '@/shared/DemoBadge';
 import { brandOr, cityOr, EMBED } from '@/shared/brand';
+import { BASE } from '@/lib/base';
 
 const BRAND = brandOr('КЛЮЧ');
 const CITY = cityOr('Москва и область');
 
 const PHONE = '+7 (900) 000-00-00';
-const IMG = (n: string) => `/img/remont/${n}.webp`;
-const MD = (n: string) => `/img/remont/${n}-md.webp`;
+const IMG = (n: string) => `${BASE}img/remont/${n}.webp`;
+const MD = (n: string) => `${BASE}img/remont/${n}-md.webp`;
 
 /* ───────────────────────── decode label (Monolith) ───────────────────────── */
 const GLYPHS = 'АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЭЮЯ0123456789/+';

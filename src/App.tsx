@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { TG_HANDLE } from './lib/contact';
+import { BASE } from '@/lib/base';
 
 /* ───────────────────────── lead personalisation ─────────────────────────
    Outreach links look like  /?n=potolki&name=Потолки%20Люкс&city=Барнаул   (see /link/) */
@@ -42,7 +43,7 @@ const demoUrl = (d: Demo, embed = false) => {
   if (LEAD.name) p.set('brand', LEAD.name);
   if (LEAD.city) p.set('city', LEAD.city);
   const s = p.toString();
-  return `/${d}/${s ? `?${s}` : ''}`;
+  return `${BASE}${d}/${s ? `?${s}` : ''}`;
 };
 
 /* ───────────────────────── small helpers ───────────────────────── */
@@ -218,7 +219,7 @@ function Compare() {
       }}
     >
       <div className="canvas" style={{ ['--cw' as string]: `${cw}px`, ['--ch' as string]: `${ch}px` }}>
-        <div className="layer-after" style={{ backgroundImage: `url(/shots/${NICHE.demo}-hero${phone ? '-m' : ''}.webp)` }}>
+        <div className="layer-after" style={{ backgroundImage: `url(${BASE}shots/${NICHE.demo}-hero${phone ? '-m' : ''}.webp)` }}>
           {loadFrame && (
             <iframe
               key={phone ? 'p' : 'd'}
@@ -371,10 +372,10 @@ function Examples() {
         <div key={tab} className="fade-swap mt-12 grid items-center gap-10 lg:grid-cols-12">
           <div className="relative lg:col-span-8">
             <a href={demoUrl(tab)} target="_blank" rel="noopener" className="device ui-press ui-press--surface ui-press--on-dark ui-focus block" aria-label={`Открыть пример: ${d.title}`}>
-              <img src={`/shots/${tab}-hero.webp`} alt={`Первый экран примера: ${d.title}`} loading="lazy" className="block aspect-[16/10] w-full object-cover object-top" />
+              <img src={`${BASE}shots/${tab}-hero.webp`} alt={`Первый экран примера: ${d.title}`} loading="lazy" className="block aspect-[16/10] w-full object-cover object-top" />
             </a>
             <div className="phone absolute -bottom-8 right-4 hidden w-[150px] sm:block md:w-[190px]" aria-hidden="true">
-              <div style={{ backgroundImage: `url(/shots/${tab}-hero-m.webp)` }} />
+              <div style={{ backgroundImage: `url(${BASE}shots/${tab}-hero-m.webp)` }} />
             </div>
           </div>
           <div className="lg:col-span-4">

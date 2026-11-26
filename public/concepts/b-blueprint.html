@@ -71,7 +71,7 @@
     <section>
       <h1>Сначала чертёж. Потом сайт, который <em>приводит заявки</em>.</h1>
       <p class="lead">Проектирую сайт, как бригада проектирует ремонт: каждый блок на своём месте и работает на заявку.</p>
-      <div class="actions"><a class="btn btn-a" href="https://t.me/Turch_I">Обсудить проект</a><a class="btn btn-b" href="/#works">Смотреть работы</a></div>
+      <div class="actions"><a class="btn btn-a" href="https://t.me/Turch_I">Обсудить проект</a><a class="btn btn-b" href="../">Смотреть работы</a></div>
       <div class="tabs" role="tablist" aria-label="Работы">
         <button class="tab" role="tab" data-i="0">01 · ремонт<b>КЛЮЧ</b><i></i></button>
         <button class="tab" role="tab" data-i="1">02 · потолки<b>Глянец</b><i></i></button>
@@ -94,9 +94,9 @@
 (() => {
   // Drawing in a 1600×1000 sheet space (matches the 16:10 screenshot).
   const SITES = [
-    { img: '/shots/remont-hero.webp', name: 'КЛЮЧ — ремонт квартир', notes: [['Первый экран из глав-этапов ремонта', 5, 48], ['Кнопка ведёт в калькулятор сметы', 52, 82], ['Заявка на замер уходит в Telegram', 92, 8]] },
-    { img: '/shots/potolki-hero.webp', name: 'Глянец — натяжные потолки', notes: [['Полотно разглаживается на скролле', 50, 30], ['Кнопка открывает 3D-примерку', 50, 82], ['Вызов замерщика → Telegram', 91, 8]] },
-    { img: '/shots/mebel-hero.webp', name: 'Форма и шпон — мебель', notes: [['Заголовок под размеры клиента', 50, 22], ['Лента работ тянется мышью', 30, 72], ['Запись в шоурум → Telegram', 93, 8]] },
+    { img: '../shots/remont-hero.webp', name: 'КЛЮЧ — ремонт квартир', notes: [['Первый экран из глав-этапов ремонта', 5, 48], ['Кнопка ведёт в калькулятор сметы', 52, 82], ['Заявка на замер уходит в Telegram', 92, 8]] },
+    { img: '../shots/potolki-hero.webp', name: 'Глянец — натяжные потолки', notes: [['Полотно разглаживается на скролле', 50, 30], ['Кнопка открывает 3D-примерку', 50, 82], ['Вызов замерщика → Telegram', 91, 8]] },
+    { img: '../shots/mebel-hero.webp', name: 'Форма и шпон — мебель', notes: [['Заголовок под размеры клиента', 50, 22], ['Лента работ тянется мышью', 30, 72], ['Запись в шоурум → Telegram', 93, 8]] },
   ];
   const marks = document.getElementById('marks'), legend = document.getElementById('legend');
   const svg = document.getElementById('svg'), sheet = document.getElementById('sheet'), shot = document.getElementById('shot'), stamp = document.getElementById('stamp');

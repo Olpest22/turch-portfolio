@@ -2,6 +2,7 @@ import { StrictMode, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../index.css';
 import '@/shared/kit/interaction-kit.js';
+import { BASE } from '@/lib/base';
 
 /* Private helper for outreach: builds a personalised portfolio link and a first message. */
 const NICHES: [string, string][] = [
@@ -46,7 +47,7 @@ function App() {
     const p = new URLSearchParams({ n });
     if (name.trim()) p.set('name', name.trim());
     if (city.trim()) p.set('city', city.trim());
-    return `${window.location.origin}/?${p.toString()}`;
+    return `${window.location.origin}${BASE}?${p.toString()}`;
   }, [n, name, city]);
   const msg = `Здравствуйте! Нашёл ${name.trim() ? `«${name.trim()}»` : 'вашу компанию'} на Яндекс Картах и заметил, что у вас нет сайта. Показал, каким он мог бы быть — там уже ваше название: ${link}\n\nЕсли интересно, за 24 часа бесплатно сделаю первый экран сайта под вас.`;
   const field = 'w-full h-[52px] rounded-[12px] px-4 text-[16px] bg-[var(--bg-2)] text-[var(--tx)] outline-none';
