@@ -11,6 +11,9 @@ const NICHES: [string, string][] = [
   ['potolki', 'Натяжные потолки'],
   ['kuhni', 'Кухни на заказ'],
   ['mebel', 'Мебель на заказ'],
+  ['vyveski', 'Изготовление вывесок'],
+  ['reklama', 'Наружная реклама'],
+  ['kuzov', 'Кузовной ремонт авто'],
 ];
 
 function Copy({ text, label }: { text: string; label: string }) {

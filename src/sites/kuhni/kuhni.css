@@ -1,0 +1,78 @@
+@import 'tailwindcss';
+@import '../../shared/kit/interaction-kit.css';
+
+/* Ольха — custom kitchens. Warm paper is intentional here: it is the colour of the
+   workshop's sanded birch and oak, paired with olive and walnut, not a default cream. */
+:root {
+  --bg: #efe9df;
+  --bg-2: #e6ded1;
+  --card: #f8f4ee;
+  --ink: #241f1a;
+  --ink-2: #5e554b;
+  --ink-3: #8a8075;
+  --line: #d9cfc1;
+  --olive: #56603b;
+  --olive-2: #6b7749;
+  --walnut: #7b4b2a;
+  --e: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ui-focus-ring: var(--olive);
+  color-scheme: light;
+  accent-color: var(--olive);
+  interpolate-size: allow-keywords;
+}
+@theme {
+  --color-bg: #efe9df;
+  --color-bg-2: #e6ded1;
+  --color-card: #f8f4ee;
+  --color-ink: #241f1a;
+  --color-ink-2: #5e554b;
+  --color-ink-3: #8a8075;
+  --color-olive: #56603b;
+  --color-walnut: #7b4b2a;
+  --font-serif: 'Literata', Georgia, serif;
+}
+html { background: var(--bg); scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 17px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+::selection { background: var(--olive); color: #fff; }
+.wrap { width: 100%; max-width: 1240px; margin-inline: auto; padding-inline: 20px; }
+@media (min-width: 768px) { .wrap { padding-inline: 40px; } }
+
+.h1 { font-family: 'Literata', serif; font-weight: 500; font-size: clamp(40px, 5.4vw, 80px); line-height: 1.02; letter-spacing: -0.025em; text-wrap: balance; }
+.h2 { font-family: 'Literata', serif; font-weight: 500; font-size: clamp(32px, 3.8vw, 54px); line-height: 1.06; letter-spacing: -0.02em; text-wrap: balance; }
+.h3 { font-family: 'Literata', serif; font-weight: 600; font-size: 24px; line-height: 1.2; }
+.lead { font-size: clamp(16px, 1.3vw, 19px); color: var(--ink-2); }
+.cap { font-size: 14px; color: var(--ink-3); }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; height: 54px; padding: 0 26px; border-radius: 12px; border: 0; font: 600 16px 'IBM Plex Sans', sans-serif; text-decoration: none; white-space: nowrap; cursor: pointer; }
+.btn-a { background: var(--olive); color: #fff; }
+.btn-a:hover { background: var(--olive-2); }
+.btn-b { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.btn-b:hover { background: rgb(36 31 26 / 0.05); }
+
+.opt { border: 0; cursor: pointer; border-radius: 12px; background: var(--card); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); font: 500 15px 'IBM Plex Sans'; }
+.opt[aria-checked='true'] { box-shadow: inset 0 0 0 2px var(--olive); background: #fff; }
+.sw { width: 44px; height: 44px; border-radius: 50%; border: 0; cursor: pointer; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .12); }
+.sw[aria-checked='true'] { box-shadow: 0 0 0 3px var(--card), 0 0 0 5px var(--olive); }
+
+input[type='range'].rng { -webkit-appearance: none; appearance: none; width: 100%; height: 30px; background: transparent; cursor: pointer; }
+input[type='range'].rng::-webkit-slider-runnable-track { height: 4px; border-radius: 4px; background: linear-gradient(90deg, var(--olive) var(--p, 50%), var(--line) var(--p, 50%)); }
+input[type='range'].rng::-moz-range-track { height: 4px; background: var(--line); border-radius: 4px; }
+input[type='range'].rng::-moz-range-progress { height: 4px; background: var(--olive); border-radius: 4px; }
+input[type='range'].rng::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; margin-top: -10px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1.5px var(--olive), 0 4px 10px rgb(0 0 0 / .15); transition: transform .2s var(--e); }
+input[type='range'].rng::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; border: 0; background: #fff; box-shadow: 0 0 0 1.5px var(--olive); }
+input[type='range'].rng:active::-webkit-slider-thumb { transform: scale(1.12); }
+
+.field { width: 100%; height: 54px; padding: 0 18px; border-radius: 12px; border: 0; outline: none; background: #fff; color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); font: 500 17px 'IBM Plex Sans'; transition: box-shadow .2s; }
+.field:focus { box-shadow: inset 0 0 0 1.5px var(--olive); }
+.field[aria-invalid='true'] { box-shadow: inset 0 0 0 1.5px #b3261e; }
+
+details.faq summary { list-style: none; cursor: pointer; }
+details.faq summary::-webkit-details-marker { display: none; }
+details.faq .plus { transition: rotate .3s var(--e); }
+details.faq[open] .plus { rotate: 45deg; }
+details.faq::details-content { block-size: 0; overflow: hidden; transition: block-size .35s var(--e), content-visibility .35s allow-discrete; }
+details.faq[open]::details-content { block-size: auto; }
+.style-card img { transition: transform 1s var(--e); }
+.style-card:hover img { transform: scale(1.04); }
+.kit rect, .kit path { transition: fill .35s var(--e); }

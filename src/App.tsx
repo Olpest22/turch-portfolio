@@ -4,13 +4,16 @@ import { BASE } from '@/lib/base';
 
 /* ───────────────────────── lead personalisation ─────────────────────────
    Outreach links look like  /?n=potolki&name=Потолки%20Люкс&city=Барнаул   (see /link/) */
-type Demo = 'remont' | 'potolki' | 'mebel';
+type Demo = 'remont' | 'potolki' | 'mebel' | 'kuhni' | 'vyveski' | 'kuzov';
 const NICHES: Record<string, { label: string; demo: Demo }> = {
   remont: { label: 'Ремонт квартир', demo: 'remont' },
   doma: { label: 'Строительство домов', demo: 'remont' },
   potolki: { label: 'Натяжные потолки', demo: 'potolki' },
-  kuhni: { label: 'Кухни на заказ', demo: 'mebel' },
+  kuhni: { label: 'Кухни на заказ', demo: 'kuhni' },
   mebel: { label: 'Мебель на заказ', demo: 'mebel' },
+  vyveski: { label: 'Изготовление вывесок', demo: 'vyveski' },
+  reklama: { label: 'Наружная реклама', demo: 'vyveski' },
+  kuzov: { label: 'Кузовной ремонт авто', demo: 'kuzov' },
 };
 const q = new URLSearchParams(window.location.search);
 const clean = (v: string | null) => (v || '').replace(/\s+/g, ' ').trim().slice(0, 42);
@@ -35,7 +38,10 @@ const TG_FREE = tg(
 const DEMOS: Record<Demo, { title: string; niche: string; points: string[] }> = {
   remont: { title: 'Ремонт квартир', niche: 'remont', points: ['Этапы ремонта прямо на первом экране', 'Калькулятор сметы: площадь, тип ремонта, опции', 'Фото объектов с фильтром', 'Заявка на замер в Telegram'] },
   potolki: { title: 'Натяжные потолки', niche: 'potolki', points: ['Полотно «разглаживается» при прокрутке', '3D-примерка: фактура, цвет и подсветка', 'Цена считается сразу', 'Вызов замерщика в Telegram'] },
-  mebel: { title: 'Мебель и кухни на заказ', niche: 'mebel', points: ['Лента работ, которую можно листать пальцем', 'Конфигуратор шкафа с ценой', 'Комнаты: гардеробные, кухни, гостиные', 'Запись в шоурум в Telegram'] },
+  mebel: { title: 'Мебель на заказ', niche: 'mebel', points: ['Лента работ, которую можно листать пальцем', 'Конфигуратор шкафа с ценой', 'Комнаты: гардеробные, кухни, гостиные', 'Запись в шоурум в Telegram'] },
+  kuhni: { title: 'Кухни на заказ', niche: 'kuhni', points: ['Конструктор кухни: планировка, фасады, столешница', 'Кухня рисуется вживую, цена считается сразу', 'Стили и фото готовых кухонь', 'Запись на замер в Telegram'] },
+  vyveski: { title: 'Вывески и реклама', niche: 'vyveski', points: ['Название клиента горит неоном на первом экране', 'Конструктор вывески: текст, тип, цвет, размер', 'Цена с монтажом сразу', 'Заявка на визуализацию в Telegram'] },
+  kuzov: { title: 'Кузовной ремонт', niche: 'kuzov', points: ['Схема машины: нажмите на деталь — увидите цену', 'Оценка по фото с загрузкой снимков', 'Услуги цеха с ценами', 'Заявка с фото в Telegram'] },
 };
 const demoUrl = (d: Demo, embed = false) => {
   const p = new URLSearchParams();
@@ -350,7 +356,7 @@ function Why() {
 }
 
 function Examples() {
-  const order: Demo[] = [NICHE.demo, ...(['remont', 'potolki', 'mebel'] as Demo[]).filter((d) => d !== NICHE.demo)];
+  const order: Demo[] = [NICHE.demo, ...(['remont', 'potolki', 'kuhni', 'mebel', 'vyveski', 'kuzov'] as Demo[]).filter((d) => d !== NICHE.demo)];
   const [tab, setTab] = useState<Demo>(order[0]);
   const d = DEMOS[tab];
   return (
