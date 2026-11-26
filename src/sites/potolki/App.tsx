@@ -1,5 +1,9 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { DemoBadge, fakeSubmit, formatPhone, rub, type LeadState } from '@/shared/DemoBadge';
+import { brandOr, cityOr, EMBED } from '@/shared/brand';
+
+const BRAND = brandOr('Глянец');
+const CITY = cityOr('Москва и область');
 import type { Light, Texture } from './Room3D';
 import ShinyText from '@/shared/rb/ShinyText';
 
@@ -21,7 +25,7 @@ const smooth = (t: number) => t * t * (3 - 2 * t);
 const ramp = (p: number, a: number, b: number) => (b <= a ? (p >= b ? 1 : 0) : smooth(clamp((p - a) / (b - a), 0, 1)));
 
 const PANELS = [
-  { eyebrow: 'Натяжные потолки · Москва и область', h: ['Ровный потолок', 'за один день.'], sub: 'Матовые, сатиновые и глянцевые полотна. Монтаж без пыли и без выноса мебели.', cta: ['Примерить потолок', '#config'] },
+  { eyebrow: `Натяжные потолки · ${CITY}`, h: ['Ровный потолок', 'за один день.'], sub: 'Матовые, сатиновые и глянцевые полотна. Монтаж без пыли и без выноса мебели.', cta: ['Примерить потолок', '#config'] },
   { eyebrow: 'Полотно', h: ['Гладко.', 'Без единого шва.'], sub: 'Бесшовные полотна шириной до 5 метров. Немецкие и французские плёнки с сертификатами.', cta: ['Посмотреть цены', '#prices'] },
   { eyebrow: 'Свет', h: ['Свет, встроенный', 'в потолок.'], sub: 'Световые линии, парящие контуры и треки. Закладные и проводку делаем в тот же день.', cta: ['Вызвать замерщика', '#lead'] },
 ];
@@ -70,6 +74,13 @@ function ScrubHero() {
       });
     };
     // Frames are all-intra keyframes, so seeking lands exactly; easing currentTime turns a jumpy scrub into a smooth one.
+    if (EMBED) {
+      // Inside the portfolio comparison: show the first panel over a still frame, no 10 MB video.
+      setReady(true);
+      readScroll();
+      paint();
+      return;
+    }
     let inView = true;
     let lastPainted = -1;
     const frame = () => {
@@ -204,7 +215,7 @@ function ScrubHero() {
       <i ref={meter} className="fixed left-0 top-0 z-50 h-[2px] w-full origin-left bg-fg opacity-55" style={{ transform: 'scaleX(0)' }} />
       <section ref={track} className="relative" style={{ height: '460vh', minHeight: 2800 }} aria-label="Главный экран">
         <div className="sticky top-0 h-[100svh] overflow-hidden">
-          <video ref={clip} muted playsInline preload="auto" disablePictureInPicture className="absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 scale-[1.02] object-cover" style={{ filter: 'contrast(1.02)' }} />
+          <video ref={clip} muted playsInline preload="auto" poster="/video/surface-poster.webp" disablePictureInPicture className="absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 scale-[1.02] object-cover" style={{ filter: 'contrast(1.02)' }} />
           <div className="stage-veil" />
           <div className="grain" />
           {PANELS.map((p, i) => (
@@ -233,7 +244,7 @@ function Header() {
     <header className="fixed inset-x-0 top-0 z-40" style={{ background: 'linear-gradient(to bottom, rgba(242,240,236,.94) 0%, rgba(242,240,236,.78) 72%, rgba(242,240,236,0) 100%)' }}>
       <div className="flex items-center justify-between gap-3 px-[clamp(16px,3.4vw,44px)] pb-4 pt-[max(14px,calc(env(safe-area-inset-top,0px)+12px))]">
         <a href="#" className="ui-dim ui-focus flex items-center gap-2.5 text-[17px] tracking-[-0.012em] text-fg no-underline">
-          <span aria-hidden="true" className="opacity-85">✵</span>Глянец
+          <span aria-hidden="true" className="opacity-85">✵</span>{BRAND}
         </a>
         <nav className="flex items-center gap-[clamp(14px,2.4vw,32px)]" aria-label="Разделы">
           {[
@@ -525,7 +536,7 @@ function Footer() {
   return (
     <footer className="py-10 pb-24 text-[13px] text-fg-faint">
       <div className="wrap flex flex-col gap-3 md:flex-row md:justify-between">
-        <span><span className="text-fg">✵ Глянец</span> · натяжные потолки · Москва и область</span>
+        <span><span className="text-fg">✵ {BRAND}</span> · натяжные потолки · {CITY}</span>
         <span><a className="ui-dim ui-focus text-fg no-underline" href="tel:+79000000000">{PHONE}</a> · ежедневно 9:00–21:00</span>
       </div>
     </footer>
@@ -545,7 +556,7 @@ export default function App() {
         <Lead />
       </main>
       <Footer />
-      <DemoBadge tone="light" />
+      {!EMBED && <DemoBadge tone="light" />}
     </>
   );
 }

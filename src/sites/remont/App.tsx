@@ -3,6 +3,10 @@ import CountUp from '@/shared/rb/CountUp';
 import FlowingMenu from '@/shared/rb/FlowingMenu';
 import BlurText from '@/shared/rb/BlurText';
 import { DemoBadge, fakeSubmit, formatPhone, rub, type LeadState } from '@/shared/DemoBadge';
+import { brandOr, cityOr, EMBED } from '@/shared/brand';
+
+const BRAND = brandOr('КЛЮЧ');
+const CITY = cityOr('Москва и область');
 
 const PHONE = '+7 (900) 000-00-00';
 const IMG = (n: string) => `/img/remont/${n}.webp`;
@@ -113,13 +117,13 @@ function Hero() {
       {/* masthead */}
       <header className="absolute inset-x-0 top-0 z-20">
         <div className="flex items-center justify-between gap-4 px-6 pt-6 md:px-14 md:pt-12">
-          <a href="#" className="ui-dim ui-focus anim-mask flex items-center gap-3 text-tx no-underline" aria-label="КЛЮЧ, наверх">
+          <a href="#" className="ui-dim ui-focus anim-mask flex items-center gap-3 text-tx no-underline" aria-label={`${BRAND}, наверх`}>
             <span className="flex items-center gap-3" style={{ animationDelay: '160ms' }}>
               <svg width="30" height="20" viewBox="0 0 30 20" aria-hidden="true">
                 <circle cx="9" cy="10" r="6.5" fill="none" stroke="currentColor" strokeWidth="2.4" />
                 <path d="M15.5 10H28v6M22.5 10v4" fill="none" stroke="currentColor" strokeWidth="2.4" />
               </svg>
-              <span className="font-head text-[19px] font-bold tracking-[0.22em]">КЛЮЧ</span>
+              <span className="block max-w-[46vw] truncate font-head text-[19px] font-bold uppercase tracking-[0.22em]">{BRAND}</span>
             </span>
           </a>
           <nav className="anim-fade hidden items-center gap-6 lg:flex" style={{ animationDelay: '340ms' }} aria-label="Разделы">
@@ -623,8 +627,8 @@ function Footer() {
     <footer className="border-t border-[var(--line)] py-12 pb-24">
       <div className="wrap flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
-          <span className="font-head text-[17px] font-bold tracking-[0.22em]">КЛЮЧ</span>
-          <span className="lbl text-tx-3">Ремонт квартир · Москва и область</span>
+          <span className="font-head text-[17px] font-bold uppercase tracking-[0.22em]">{BRAND}</span>
+          <span className="lbl text-tx-3">Ремонт квартир · {CITY}</span>
         </div>
         <div className="lbl flex flex-wrap gap-6 text-tx-2">
           <a className="ui-dim ui-focus text-inherit no-underline" href="tel:+79000000000">{PHONE}</a>
@@ -649,7 +653,7 @@ export default function App() {
         <Lead />
       </main>
       <Footer />
-      <DemoBadge tone="dark" />
+      {!EMBED && <DemoBadge tone="dark" />}
     </>
   );
 }

@@ -2,6 +2,10 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEven
 import Masonry from '@/shared/rb/Masonry';
 import Magnet from '@/shared/rb/Magnet';
 import { DemoBadge, fakeSubmit, formatPhone, rub, type LeadState } from '@/shared/DemoBadge';
+import { brandOr, cityOr, EMBED } from '@/shared/brand';
+
+const BRAND = brandOr('Форма и шпон');
+const CITY = cityOr('Москва и область');
 
 const IMG = (n: string) => `/img/mebel/${n}.webp`;
 const MD = (n: string) => `/img/mebel/${n}-md.webp`;
@@ -38,9 +42,9 @@ function Nav() {
   return (
     <>
       <nav className="fixed inset-x-0 top-0 z-50 flex items-center justify-between bg-white/95 px-4 py-4 sm:px-6 sm:py-5 md:px-10" aria-label="Главное меню">
-        <a href="#" className="ui-dim ui-focus flex items-center gap-2.5 text-[16px] font-semibold tracking-[-0.02em] text-ink no-underline" aria-label="Форма и шпон, наверх">
+        <a href="#" className="ui-dim ui-focus flex items-center gap-2.5 text-[16px] font-semibold tracking-[-0.02em] text-ink no-underline" aria-label={`${BRAND}, наверх`}>
           <Logo />
-          <span className="hidden sm:inline">Форма и шпон</span>
+          <span className="block max-w-[34vw] truncate sm:max-w-none">{BRAND}</span>
         </a>
         <button type="button" aria-label="Открыть меню" aria-expanded={open} onClick={() => setOpen(true)} className="group ui-press ui-focus absolute left-1/2 flex h-10 w-10 -translate-x-1/2 flex-col items-center justify-center gap-[5px] rounded-full">
           <span className="h-[1.5px] w-6 rounded-full bg-neutral-900 transition-all duration-300 group-hover:w-5" />
@@ -483,7 +487,7 @@ function Showroom() {
           <img src={IMG('closet-open')} alt="Шоурум с образцами фасадов" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 p-7 text-white md:p-10">
-            <div className="text-[13px] font-medium text-white/70">Шоурум в Москве</div>
+            <div className="text-[13px] font-medium text-white/70">Шоурум · {CITY}</div>
             <div className="mt-2 text-[28px] font-semibold leading-tight tracking-[-0.03em]">Потрогайте шпон, откройте ящики, выберите ручки</div>
             <div className="mt-4 text-[15px] text-white/80">Ежедневно 10:00–20:00 · 5 минут от метро · парковка</div>
           </div>
@@ -522,8 +526,8 @@ function Footer() {
   return (
     <footer className="border-t border-[var(--line)] py-10 pb-24">
       <div className="wrap flex flex-col gap-4 text-[14px] text-ink-2 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-2.5 text-ink"><Logo size={22} /><span className="font-semibold">Форма и шпон</span></div>
-        <div>Мебель на заказ · Москва и область</div>
+        <div className="flex items-center gap-2.5 text-ink"><Logo size={22} /><span className="font-semibold">{BRAND}</span></div>
+        <div>Мебель на заказ · {CITY}</div>
         <a href="tel:+79000000000" className="ui-dim ui-focus text-ink no-underline">{PHONE}</a>
       </div>
     </footer>
@@ -544,7 +548,7 @@ export default function App() {
         <Showroom />
       </main>
       <Footer />
-      <DemoBadge tone="light" />
+      {!EMBED && <DemoBadge tone="light" />}
     </div>
   );
 }

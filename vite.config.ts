@@ -16,6 +16,7 @@ export default defineConfig({
         remont: r('./remont/index.html'),
         potolki: r('./potolki/index.html'),
         mebel: r('./mebel/index.html'),
+        link: r('./link/index.html'),
       },
     },
   },
