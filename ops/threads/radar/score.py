@@ -93,10 +93,25 @@ def level(pts, why=None):
     return "maybe" if pts >= 2 and (pts < 4 or weak) else "hot" if pts >= 4 else ""
 
 
+def _contacts():
+    import json
+    from pathlib import Path
+    c = json.loads((Path(__file__).resolve().parents[3] / "src/lib/contacts.json").read_text())
+    out = []
+    if c.get("whatsapp"):
+        out.append("WhatsApp +" + "".join(ch for ch in c["whatsapp"] if ch.isdigit()))
+    if c.get("telegram"):
+        out.append("Telegram @" + c["telegram"].lstrip("@"))
+    return out
+
+
 def reply(niche):
-    """Ready reply in the account's voice (see .claude/skills/threads-posts/references/account.md)."""
+    """Ready reply under a Threads post, in the account's voice (.claude/skills/threads-posts/references/account.md).
+    The person is on Threads, so the first ask is a DM right here; other messengers are listed as an option."""
     d = DEMO.get(niche)
     example = f"{DEMO_TEXT[d]}: {PORTFOLIO}{d}/" if d else f"примеры тут: {PORTFOLIO}"
+    other = _contacts()
+    tail = f" или в {', '.join(other)}" if other else ""
     return (f"Делаю сайты для местного бизнеса, {example}\n"
             "Могу за сутки бесплатно собрать первый экран под вас, посмотрите и решите. "
-            "Напишите в личку или в Telegram @Turch_I")
+            f"Напишите мне здесь в личку{tail}")

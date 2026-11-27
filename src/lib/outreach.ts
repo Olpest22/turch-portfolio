@@ -1,6 +1,6 @@
 import { BASE } from './base';
 import { NICHES } from './niches';
-import { TG_HANDLE } from './contact';
+import { contactLine, type Channel } from './contact';
 
 /* Outreach copy for cold leads: first message, two follow-ups and replies to objections.
    Everything is sent by hand, one chat at a time. */
@@ -35,8 +35,10 @@ const ORDER: Record<Group, string> = {
 
 export type LeadLike = { niche: string; name: string; city: string; source: Source };
 
-export const leadLink = (l: Pick<LeadLike, 'niche' | 'name' | 'city'>) => {
+/** `ch` = the messenger the link is sent in: the lead's page then offers to answer in that same messenger. */
+export const leadLink = (l: Pick<LeadLike, 'niche' | 'name' | 'city'>, ch?: Channel) => {
   const p = new URLSearchParams({ n: l.niche });
+  if (ch) p.set('c', ch);
   if (l.name.trim()) p.set('name', l.name.trim().slice(0, 42));
   if (l.city.trim()) p.set('city', l.city.trim().slice(0, 42));
   // keep Cyrillic readable in the chat: a link full of %D0%9F looks like spam
@@ -48,27 +50,28 @@ const nm = (l: LeadLike) => (l.name.trim() ? `«${l.name.trim()}»` : 'вашу 
 const nm2 = (l: LeadLike) => (l.name.trim() ? `для «${l.name.trim()}»` : 'для вас');
 
 /** Step 0 = first message, 1 and 2 = follow-ups. */
-export function message(l: LeadLike, step: number): string {
-  const link = leadLink(l);
+export function message(l: LeadLike, step: number, ch?: Channel): string {
+  const link = leadLink(l, ch);
   const hook = NICHES[l.niche]?.hook ?? '';
   if (step <= 0)
     return `Здравствуйте! Нашёл ${nm(l)} ${SOURCES[l.source]} и заметил, что у вас нет сайта. Сделал пример, каким он мог бы быть, там уже ваше название: ${link}\n\n${hook}\n\nЕсли интересно, за 24 часа бесплатно сделаю первый экран под вас. Если не актуально, просто напишите, больше не побеспокою.`;
   if (step === 1)
     return `Добрый день! Напомню про пример сайта ${nm2(l)}: ${link}\n\n${WHY[groupOf(l.niche)]}\n\nМогу бесплатно сделать первый экран с вашими фото и ценами. От вас нужны только 3–5 фото работ. Сделать?`;
-  return `Последнее сообщение, чтобы не надоедать. Если сайт пока не нужен, понимаю. Пример останется по ссылке: ${link}\n\nРешите сделать — пишите сюда или в Telegram ${TG_HANDLE}. Сайт от 15 000 ₽, 5–7 дней.`;
+  return `Последнее сообщение, чтобы не надоедать. Если сайт пока не нужен, понимаю. Пример останется по ссылке: ${link}\n\nРешите сделать, пишите сюда. Сайт от 15 000 ₽, 5–7 дней.`;
 }
 
 /** Days to wait after step N was sent before the next one is due. */
 export const WAIT = [2, 5];
 export const STEP_LABEL = ['Первое сообщение', 'Напоминание 1', 'Напоминание 2'];
 
-export function objections(l: LeadLike): [string, string][] {
-  const link = leadLink(l);
+export function objections(l: LeadLike, ch?: Channel): [string, string][] {
+  const link = leadLink(l, ch);
+  const other = contactLine(ch);
   const g = groupOf(l.niche);
   return [
     [
       'Сколько стоит? Что входит?',
-      `От 15 000 ₽, срок 5–7 дней. Входит: дизайн под вашу нишу, версия для телефона, ваши услуги, цены и фото работ, заявки с сайта сразу в Telegram, размещение и подключение домена, базовая настройка для Яндекса и Google.\n\nПервый экран сделаю бесплатно за 24 часа, чтобы вы посмотрели до оплаты.`,
+      `От 15 000 ₽, срок 5–7 дней. Входит: дизайн под вашу нишу, версия для телефона, ваши услуги, цены и фото работ, заявки с сайта сразу вам в мессенджер или на почту, размещение и подключение домена, базовая настройка для Яндекса и Google.\n\nПервый экран сделаю бесплатно за 24 часа, чтобы вы посмотрели до оплаты.`,
     ],
     [
       'Дорого',
@@ -88,7 +91,7 @@ export function objections(l: LeadLike): [string, string][] {
     ],
     [
       'А вы кто? Есть примеры?',
-      `Я делаю сайты для местных компаний. Примеры на той же странице: ниже есть ещё пять сайтов для разных ниш, их можно открыть и потыкать. Можно написать мне в Telegram ${TG_HANDLE}.`,
+      `Я делаю сайты для местных компаний. Примеры на той же странице: ниже есть ещё пять сайтов для разных ниш, их можно открыть и потыкать. Пишите сюда, отвечу${other ? `. Если удобнее, я есть в ${other}` : ''}.`,
     ],
     [
       'Согласен на бесплатный экран',

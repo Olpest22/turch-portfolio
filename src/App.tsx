@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { TG_HANDLE } from './lib/contact';
+import { CH, CHANNELS, isChannel, type Channel } from './lib/contact';
 import { NICHES, type Demo } from './lib/niches';
 import { BASE } from '@/lib/base';
 
@@ -16,22 +16,22 @@ const NICHE = NICHES[LEAD.niche];
 const named = !!LEAD.name;
 const quoted = named ? `«${LEAD.name}»` : '';
 
-function tg(text: string) {
-  return `https://t.me/${TG_HANDLE.replace('@', '')}?text=${encodeURIComponent(text)}`;
-}
-const TG_FREE = tg(
-  named
-    ? `Здравствуйте! Пишу из ${quoted}${LEAD.city ? `, ${LEAD.city}` : ''}. Хочу бесплатно посмотреть первый экран сайта.`
-    : 'Здравствуйте! Хочу бесплатно посмотреть первый экран сайта для своего бизнеса.',
-);
+const FREE_TEXT = named
+  ? `Здравствуйте! Пишу из ${quoted}${LEAD.city ? `, ${LEAD.city}` : ''}. Хочу бесплатно посмотреть первый экран сайта.`
+  : 'Здравствуйте! Хочу бесплатно посмотреть первый экран сайта для своего бизнеса.';
+/* the lead answers in the messenger the link came in (?c=whatsapp from the tracker), else the first configured one */
+const cParam = q.get('c') || '';
+const PRIMARY: Channel = isChannel(cParam) ? cParam : CHANNELS[0];
+const chUrl = (c: Channel) => CH[c].url(FREE_TEXT);
+const CTA = chUrl(PRIMARY);
 
 const DEMOS: Record<Demo, { title: string; niche: string; points: string[] }> = {
-  remont: { title: 'Ремонт квартир', niche: 'remont', points: ['Этапы ремонта прямо на первом экране', 'Калькулятор сметы: площадь, тип ремонта, опции', 'Фото объектов с фильтром', 'Заявка на замер в Telegram'] },
-  potolki: { title: 'Натяжные потолки', niche: 'potolki', points: ['Полотно «разглаживается» при прокрутке', '3D-примерка: фактура, цвет и подсветка', 'Цена считается сразу', 'Вызов замерщика в Telegram'] },
-  mebel: { title: 'Мебель на заказ', niche: 'mebel', points: ['Лента работ, которую можно листать пальцем', 'Конфигуратор шкафа с ценой', 'Комнаты: гардеробные, кухни, гостиные', 'Запись в шоурум в Telegram'] },
-  kuhni: { title: 'Кухни на заказ', niche: 'kuhni', points: ['Конструктор кухни: планировка, фасады, столешница', 'Кухня рисуется вживую, цена считается сразу', 'Стили и фото готовых кухонь', 'Запись на замер в Telegram'] },
-  vyveski: { title: 'Вывески и реклама', niche: 'vyveski', points: ['Название клиента горит неоном на первом экране', 'Конструктор вывески: текст, тип, цвет, размер', 'Цена с монтажом сразу', 'Заявка на визуализацию в Telegram'] },
-  kuzov: { title: 'Кузовной ремонт', niche: 'kuzov', points: ['Схема машины: нажмите на деталь — увидите цену', 'Оценка по фото с загрузкой снимков', 'Услуги цеха с ценами', 'Заявка с фото в Telegram'] },
+  remont: { title: 'Ремонт квартир', niche: 'remont', points: ['Этапы ремонта прямо на первом экране', 'Калькулятор сметы: площадь, тип ремонта, опции', 'Фото объектов с фильтром', 'Заявка на замер сразу вам в мессенджер'] },
+  potolki: { title: 'Натяжные потолки', niche: 'potolki', points: ['Полотно «разглаживается» при прокрутке', '3D-примерка: фактура, цвет и подсветка', 'Цена считается сразу', 'Вызов замерщика в один клик'] },
+  mebel: { title: 'Мебель на заказ', niche: 'mebel', points: ['Лента работ, которую можно листать пальцем', 'Конфигуратор шкафа с ценой', 'Комнаты: гардеробные, кухни, гостиные', 'Запись в шоурум в один клик'] },
+  kuhni: { title: 'Кухни на заказ', niche: 'kuhni', points: ['Конструктор кухни: планировка, фасады, столешница', 'Кухня рисуется вживую, цена считается сразу', 'Стили и фото готовых кухонь', 'Запись на замер в один клик'] },
+  vyveski: { title: 'Вывески и реклама', niche: 'vyveski', points: ['Название клиента горит неоном на первом экране', 'Конструктор вывески: текст, тип, цвет, размер', 'Цена с монтажом сразу', 'Заявка на визуализацию в один клик'] },
+  kuzov: { title: 'Кузовной ремонт', niche: 'kuzov', points: ['Схема машины: нажмите на деталь — увидите цену', 'Оценка по фото с загрузкой снимков', 'Услуги цеха с ценами', 'Заявка сразу с фото'] },
 };
 const demoUrl = (d: Demo, embed = false) => {
   const p = new URLSearchParams();
@@ -43,11 +43,31 @@ const demoUrl = (d: Demo, embed = false) => {
 };
 
 /* ───────────────────────── small helpers ───────────────────────── */
-function TelegramIcon() {
+const CH_ICON: Record<Channel, string> = {
+  telegram: 'M21.5 3.6 2.9 10.8c-1.3.5-1.2 1.3-.2 1.6l4.8 1.5 1.8 5.6c.2.7.4.9.9.9.4 0 .6-.2.9-.5l2.4-2.3 4.9 3.6c.9.5 1.5.2 1.8-.8l3.2-15.1c.3-1.3-.5-1.9-1.4-1.6ZM9.6 14.4l9-5.7c.4-.3.8-.1.5.2l-7.6 6.9-.3 3.3-1.6-4.7Z',
+  whatsapp: 'M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z',
+  max: 'M12 2.5a9.5 9.5 0 0 0-8.2 14.3L2.5 21.5l4.8-1.3A9.5 9.5 0 1 0 12 2.5Zm-4 7h8M8 13h5',
+  instagram: 'M7.5 2.5h9a5 5 0 0 1 5 5v9a5 5 0 0 1-5 5h-9a5 5 0 0 1-5-5v-9a5 5 0 0 1 5-5Zm4.5 5.2a4.3 4.3 0 1 0 0 8.6 4.3 4.3 0 0 0 0-8.6Zm5.3-1.8a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z',
+};
+function ChIcon({ c }: { c: Channel }) {
+  const line = c === 'max' || c === 'instagram';
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
-      <path d="M21.5 3.6 2.9 10.8c-1.3.5-1.2 1.3-.2 1.6l4.8 1.5 1.8 5.6c.2.7.4.9.9.9.4 0 .6-.2.9-.5l2.4-2.3 4.9 3.6c.9.5 1.5.2 1.8-.8l3.2-15.1c.3-1.3-.5-1.9-1.4-1.6ZM9.6 14.4l9-5.7c.4-.3.8-.1.5.2l-7.6 6.9-.3 3.3-1.6-4.7Z" />
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill={line ? 'none' : 'currentColor'} stroke={line ? 'currentColor' : 'none'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d={CH_ICON[c]} />
     </svg>
+  );
+}
+/** Every configured messenger, for the final block. */
+function Channels({ className = '' }: { className?: string }) {
+  return (
+    <div className={`flex flex-wrap justify-center gap-3 ${className}`}>
+      {CHANNELS.map((c) => (
+        <a key={c} href={chUrl(c)} target="_blank" rel="noopener" className={`btn ${c === PRIMARY ? 'btn-a' : 'btn-b ui-press--on-dark'} ui-press ui-focus`}>
+          <ChIcon c={c} />
+          {CH[c].label}
+        </a>
+      ))}
+    </div>
   );
 }
 function Ico({ d }: { d: string }) {
@@ -266,8 +286,8 @@ function Header() {
   return (
     <header className="wrap flex h-[72px] items-center justify-between">
       <a href="#" className="ui-dim ui-focus font-display text-[19px] font-extrabold tracking-[0.1em] text-tx no-underline" aria-label="TURCH, наверх">TURCH</a>
-      <a href={TG_FREE} target="_blank" rel="noopener" className="btn btn-a ui-press ui-focus" style={{ height: 42, padding: '0 16px', fontSize: 15 }}>
-        <TelegramIcon />
+      <a href={CTA} target="_blank" rel="noopener" className="btn btn-a ui-press ui-focus" style={{ height: 42, padding: '0 16px', fontSize: 15 }}>
+        <ChIcon c={PRIMARY} />
         Написать
       </a>
     </header>
@@ -307,8 +327,8 @@ function Hero() {
       <div className={`rise lg:col-span-5 lg:row-start-2 lg:self-start ${shown ? 'in' : ''}`} style={{ transitionDelay: '60ms' }}>
         <p className="lead m-0 max-w-[30rem]">Потяните ползунок: справа то, что клиент видит сейчас, слева — сайт с ценами, работами и заявкой в один клик.</p>
         <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <a href={TG_FREE} target="_blank" rel="noopener" className="btn btn-a ui-press ui-focus">
-            <TelegramIcon />
+          <a href={CTA} target="_blank" rel="noopener" className="btn btn-a ui-press ui-focus">
+            <ChIcon c={PRIMARY} />
             Получить первый экран бесплатно
           </a>
         </div>
@@ -321,7 +341,7 @@ function Hero() {
 const WHY: [string, string][] = [
   ['На карточке показывают конкурентов', 'Под вашей карточкой — «похожие места» и реклама соседей. На своём сайте клиент видит только вас.'],
   ['Сайт отвечает на вопросы до звонка', 'Цены, сроки, фото работ. Клиент приходит уже готовым заказать, а не «просто узнать».'],
-  ['Заявки приходят, пока вы на объекте', 'Форма и расчёт отправляют заявку в Telegram круглосуточно, без пропущенных звонков.'],
+  ['Заявки приходят, пока вы на объекте', 'Заявка с расчётом приходит вам в мессенджер или на почту круглосуточно, без пропущенных звонков.'],
   ['Свой сайт выглядит солиднее', 'Когда клиент выбирает между двумя компаниями, аккуратный сайт часто решает в вашу пользу.'],
 ];
 function Why() {
@@ -398,7 +418,7 @@ const INCLUDED = [
   'Дизайн под вашу нишу и ваш город',
   'Версия для телефона — с него зайдёт большинство клиентов',
   'Ваши услуги, цены, фото работ и контакты',
-  'Заявки с сайта сразу в Telegram',
+  'Заявки с сайта сразу вам: в мессенджер или на почту',
   'Размещение в интернете и подключение домена',
   'Базовая настройка для Яндекса и Google',
 ];
@@ -414,8 +434,8 @@ function Offer() {
             <div className="mt-6 rounded-2xl bg-[rgb(255_107_26_/_0.1)] p-4 text-[15px] leading-snug text-[#ffc4a3]">
               Сначала бесплатно пришлю первый экран вашего сайта. Не понравится — ничего не платите.
             </div>
-            <a href={TG_FREE} target="_blank" rel="noopener" className="btn btn-a ui-press ui-focus mt-6 w-full">
-              <TelegramIcon />
+            <a href={CTA} target="_blank" rel="noopener" className="btn btn-a ui-press ui-focus mt-6 w-full">
+              <ChIcon c={PRIMARY} />
               Получить первый экран
             </a>
           </div>
@@ -437,10 +457,10 @@ function Offer() {
 }
 
 const STEPS: [string, string][] = [
-  ['Пишете в Telegram', 'Пара слов о бизнесе: чем занимаетесь и где.'],
+  ['Пишете мне', 'В WhatsApp, Telegram или где удобно: пара слов о бизнесе, чем занимаетесь и где.'],
   ['Первый экран за 24 часа', 'Присылаю, как будет выглядеть ваш сайт. Бесплатно.'],
   ['Сайт за 5–7 дней', 'Понравилось — собираю все блоки, тексты и мобильную версию.'],
-  ['Запуск', 'Размещаю, подключаю домен и заявки в Telegram.'],
+  ['Запуск', 'Размещаю, подключаю домен и присылаю заявки туда, где вам удобно их получать.'],
 ];
 function Steps() {
   return (
@@ -469,7 +489,7 @@ const FAQ: [string, string][] = [
   ['Что, если первый экран не понравится?', 'Ничего не платите. Первый экран бесплатный и ни к чему не обязывает.'],
   ['Что нужно от меня?', 'Название, телефон, список услуг и цены. Если есть фото работ — пришлите, если нет, подберу.'],
   ['Сколько стоит содержание сайта?', 'Размещение — без абонентской платы. Домен в зоне .ru обычно стоит несколько сотен рублей в год.'],
-  ['Можно потом поменять цены и тексты?', 'Да. Напишите в Telegram, что поменять, и я внесу правки.'],
+  ['Можно потом поменять цены и тексты?', 'Да. Напишите мне, что поменять, и я внесу правки.'],
 ];
 function Faq() {
   return (
@@ -500,11 +520,8 @@ function Final() {
           {named ? `${quoted}, пришлю первый экран вашего сайта завтра` : 'Пришлю первый экран вашего сайта завтра'}
         </h2>
         <p className="lead mx-auto mb-0 mt-5 max-w-[32rem]">Без предоплаты и обязательств. Напишите пару слов о бизнесе — остальное сделаю сам.</p>
-        <a href={TG_FREE} target="_blank" rel="noopener" className="btn btn-a ui-press ui-focus mt-8">
-          <TelegramIcon />
-          Написать в Telegram
-        </a>
-        <div className="mt-4 text-[15px] text-tx-3">{TG_HANDLE}</div>
+        <Channels className="mt-8" />
+        <div className="mt-4 text-[15px] text-tx-3">{CHANNELS.filter((c) => c !== 'max').map((c) => `${CH[c].label} ${CH[c].handle}`).join(' · ')}</div>
       </div>
     </section>
   );
@@ -533,8 +550,8 @@ function StickyCta() {
   }, []);
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 p-3 sm:hidden" style={{ transform: show ? 'none' : 'translateY(120%)', transition: 'transform .35s var(--ease)', background: 'linear-gradient(0deg, rgb(14 13 12 / .96) 60%, transparent)' }} aria-hidden={!show}>
-      <a href={TG_FREE} target="_blank" rel="noopener" tabIndex={show ? 0 : -1} className="btn btn-a ui-press ui-focus w-full">
-        <TelegramIcon />
+      <a href={CTA} target="_blank" rel="noopener" tabIndex={show ? 0 : -1} className="btn btn-a ui-press ui-focus w-full">
+        <ChIcon c={PRIMARY} />
         Первый экран бесплатно
       </a>
     </div>

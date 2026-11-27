@@ -13,6 +13,10 @@ import {
 /* Private outreach tracker. Data lives only in this browser (localStorage); export a CSV to back it up
    or move to another device. Messages are sent by hand: this page only prepares them. */
 
+type Via = 'whatsapp' | 'telegram' | 'instagram';
+const VIA_LABEL: Record<Via, string> = { whatsapp: 'WhatsApp', telegram: 'Telegram', instagram: 'Instagram' };
+const igHandle = (s = '') => s.trim().replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/^@/, '').replace(/[/?#].*$/, '');
+const igUrl = (s?: string) => (igHandle(s) && /^[a-z0-9._]{2,30}$/i.test(igHandle(s)) ? `https://ig.me/m/${igHandle(s)}` : '');
 type Status = 'todo' | 'sent' | 'reply' | 'deal' | 'no';
 type Lead = {
   id: string;
@@ -21,6 +25,10 @@ type Lead = {
   city: string;
   phone: string;
   tg: string;
+  /** Instagram username, if the lead has one */
+  ig?: string;
+  /** messenger the last message went to */
+  via?: Via;
   card: string;
   source: Source;
   note: string;
@@ -107,11 +115,11 @@ const isDue = (l: Lead) => {
 };
 
 /* ─── CSV ─── */
-const COLS = ['Название', 'Ниша', 'Город', 'Телефон', 'Telegram', 'Карточка', 'Источник', 'Статус', 'Отправлено', 'Последнее', 'Заметка'] as const;
+const COLS = ['Название', 'Ниша', 'Город', 'Телефон', 'Telegram', 'Instagram', 'Карточка', 'Источник', 'Статус', 'Отправлено', 'Последнее', 'Заметка'] as const;
 const csvCell = (v: string) => (/[;"\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
 function toCsv(ls: Lead[]) {
   const rows = ls.map((l) =>
-    [l.name, l.niche, l.city, l.phone, l.tg, l.card, l.source, l.status, String(l.step), l.lastAt ? new Date(l.lastAt).toISOString() : '', l.note].map(csvCell).join(';'),
+    [l.name, l.niche, l.city, l.phone, l.tg, l.ig ?? '', l.card, l.source, l.status, String(l.step), l.lastAt ? new Date(l.lastAt).toISOString() : '', l.note].map(csvCell).join(';'),
   );
   return '﻿' + [COLS.join(';'), ...rows].join('\r\n');
 }
@@ -209,6 +217,7 @@ function fromTable(rows: string[][], defaults: { niche: string; city: string; so
     l.phone = wa ? `+${wa}` : mobile || phones[0] || '';
     const others = phones.filter((x) => normPhone(x) !== normPhone(l.phone));
     l.tg = g('tg');
+    l.ig = igHandle(g('instagram'));
     l.card = g('card');
     const src = g('source');
     l.source = src === 'yandex' || src === '2gis' ? src : sourceFromUrl(l.card) || defaults.source;
@@ -220,7 +229,6 @@ function fromTable(rows: string[][], defaults: { niche: string; city: string; so
     const extra = [
       g('category') && `Рубрика: ${g('category')}`,
       g('rating') && `Рейтинг ${g('rating')}${g('reviews') ? `, отзывы: ${g('reviews')}` : ''}`,
-      g('instagram') && `Instagram: ${g('instagram')}`,
       others.length ? `Ещё телефоны: ${others.join(', ')}` : '',
       addr && `Адрес: ${addr}`,
     ].filter(Boolean);
@@ -305,6 +313,7 @@ function AddPanel({ onAdd }: { onAdd: (ls: Lead[]) => number }) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [tg, setTg] = useState('');
+  const [ig, setIg] = useState('');
   const [card, setCard] = useState('');
   const [paste, setPaste] = useState('');
   const [msg, setMsg] = useState('');
@@ -313,11 +322,11 @@ function AddPanel({ onAdd }: { onAdd: (ls: Lead[]) => number }) {
   const addOne = () => {
     if (!name.trim() && !phone.trim()) { setMsg('Нужно название или телефон'); return; }
     const n = onAdd([{
-      id: uid(), niche, name: name.trim(), city: city.trim(), phone: phone.trim(), tg: tg.trim(), card: card.trim(),
+      id: uid(), niche, name: name.trim(), city: city.trim(), phone: phone.trim(), tg: tg.trim(), ig: igHandle(ig), card: card.trim(),
       source: sourceFromUrl(card) || source, note: '', status: 'todo', step: 0, lastAt: 0, created: Date.now(), log: [],
     }]);
     setMsg(n ? `Добавлен «${name.trim() || fmtPhone(phone)}»` : 'Такой лид уже есть');
-    if (n) { setName(''); setPhone(''); setTg(''); setCard(''); }
+    if (n) { setName(''); setPhone(''); setTg(''); setIg(''); setCard(''); }
   };
   const addList = () => {
     const n = onAdd(preview);
@@ -355,6 +364,7 @@ function AddPanel({ onAdd }: { onAdd: (ls: Lead[]) => number }) {
             <Field label="Название"><input className={field} style={ring} value={name} maxLength={42} placeholder="Потолки Люкс" onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addOne()} /></Field>
             <Field label="Телефон (для WhatsApp)"><input className={field} style={ring} value={phone} inputMode="tel" placeholder="+7 900 000-00-00" onChange={(e) => setPhone(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addOne()} /></Field>
             <Field label="Telegram, если есть"><input className={field} style={ring} value={tg} placeholder="@username" onChange={(e) => setTg(e.target.value)} /></Field>
+            <Field label="Instagram, если есть"><input className={field} style={ring} value={ig} placeholder="@username" onChange={(e) => setIg(e.target.value)} /></Field>
             <Field label="Ссылка на карточку"><input className={field} style={ring} value={card} inputMode="url" placeholder="https://2gis.ru/…" onChange={(e) => setCard(e.target.value)} /></Field>
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-4">
@@ -396,15 +406,20 @@ function LeadCard({ l, open, onToggle, update, remove, onSent }: {
   const [opened, setOpened] = useState(false);
   const [obj, setObj] = useState<number | null>(null);
   useEffect(() => { setStep(stepNow); setOpened(false); }, [stepNow, open]);
-  const text = message(l, step);
-  const wa = waUrl(l.phone, text);
   const tgu = tgUrl(l.tg, l.phone);
+  const igu = igUrl(l.ig);
+  const avail = ([['whatsapp', !!waUrl(l.phone, 'x')], ['telegram', !!tgu], ['instagram', !!igu]] as [Via, boolean][]).filter(([, ok]) => ok).map(([v]) => v);
+  const [via, setVia] = useState<Via | undefined>(l.via && avail.includes(l.via) ? l.via : avail[0]);
+  useEffect(() => { if (!via || !avail.includes(via)) setVia(avail[0]); }, [avail.join(), via]); // eslint-disable-line react-hooks/exhaustive-deps
+  const text = message(l, step, via);
+  const wa = waUrl(l.phone, text);
+  const openUrl = via === 'whatsapp' ? wa : via === 'telegram' ? tgu : via === 'instagram' ? igu : '';
   const due = isDue(l);
   const canSend = l.status === 'todo' || l.status === 'sent';
 
   const markSent = () => {
     const s = Math.max(l.step, step + 1);
-    update({ step: s, lastAt: Date.now(), status: 'sent' }, `msg${step}`);
+    update({ step: s, lastAt: Date.now(), status: 'sent', via }, `msg${step}${via ? `:${via}` : ''}`);
     onSent();
   };
 
@@ -442,27 +457,40 @@ function LeadCard({ l, open, onToggle, update, remove, onSent }: {
                 </button>
               ))}
             </div>
+            {avail.length > 1 && (
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-[14px] text-tx-3">
+                Пишу в
+                {avail.map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    aria-pressed={via === v}
+                    className={`ui-press ui-focus h-[32px] rounded-full px-3 text-[14px] ${via === v ? 'bg-[rgb(255_107_26/0.16)] font-semibold text-[#ffb48a]' : 'text-tx-2'}`}
+                    style={via === v ? undefined : ring}
+                    onClick={() => setVia(v)}
+                  >
+                    {VIA_LABEL[v]}
+                  </button>
+                ))}
+              </div>
+            )}
+            {!avail.length && <p className="mb-0 mt-3 text-[14px] text-tx-3">Нет телефона, Telegram или Instagram: добавьте контакт ниже или скопируйте текст.</p>}
             <p className="mb-0 mt-3 whitespace-pre-wrap rounded-[12px] bg-bg p-4 text-[15px] leading-relaxed [overflow-wrap:anywhere]" style={ring}>{text}</p>
             <div className="mt-3 flex flex-wrap gap-2.5">
-              {wa && (
-                <a className="btn btn-a ui-press ui-focus h-[44px] px-4 text-[15px]" href={wa} target="_blank" rel="noopener" onClick={() => setOpened(true)}>
-                  Открыть в WhatsApp
-                </a>
-              )}
-              {tgu && (
+              {via && openUrl && (
                 <a
-                  className={`btn ${wa ? 'btn-b ui-press--on-dark' : 'btn-a'} ui-press ui-focus h-[44px] px-4 text-[15px]`}
-                  href={tgu}
+                  className="btn btn-a ui-press ui-focus h-[44px] px-4 text-[15px]"
+                  href={openUrl}
                   target="_blank"
                   rel="noopener"
-                  title="Текст скопируется, вставьте его в чат"
-                  onClick={() => { void copyText(text); setOpened(true); }}
+                  title={via === 'whatsapp' ? undefined : 'Текст скопируется, вставьте его в чат'}
+                  onClick={() => { if (via !== 'whatsapp') void copyText(text); setOpened(true); }}
                 >
-                  Telegram (текст скопирован)
+                  {via === 'whatsapp' ? 'Открыть в WhatsApp' : `Открыть ${VIA_LABEL[via]} (текст скопирован)`}
                 </a>
               )}
-              <CopyBtn text={text} label="Скопировать" primary={!wa && !tgu} />
-              <a className="btn btn-b ui-press ui-press--on-dark ui-focus h-[44px] px-4 text-[15px]" href={leadLink(l)} target="_blank" rel="noopener">Как видит лид ↗</a>
+              <CopyBtn text={text} label="Скопировать" primary={!openUrl} />
+              <a className="btn btn-b ui-press ui-press--on-dark ui-focus h-[44px] px-4 text-[15px]" href={leadLink(l, via)} target="_blank" rel="noopener">Как видит лид ↗</a>
               {l.card && <a className="btn btn-b ui-press ui-press--on-dark ui-focus h-[44px] px-4 text-[15px]" href={l.card} target="_blank" rel="noopener">Карточка ↗</a>}
             </div>
             {canSend && step >= l.step && (
@@ -500,7 +528,7 @@ function LeadCard({ l, open, onToggle, update, remove, onSent }: {
           <div>
             <div className="text-[14px] text-tx-3">Если ответил</div>
             <ul className="m-0 mt-2 grid list-none gap-2 p-0">
-              {objections(l).map(([q, a], i) => (
+              {objections(l, via).map(([q, a], i) => (
                 <li key={q} className="rounded-[12px] bg-bg" style={ring}>
                   <button type="button" className="ui-focus flex w-full items-center justify-between gap-3 rounded-[12px] px-4 py-3 text-left text-[15px] font-medium" aria-expanded={obj === i} onClick={() => setObj(obj === i ? null : i)}>
                     {q}
@@ -523,6 +551,7 @@ function LeadCard({ l, open, onToggle, update, remove, onSent }: {
             <Field label="Ниша"><NicheSelect value={l.niche} onChange={(v) => update({ niche: v })} /></Field>
             <Field label="Телефон"><input className={field} style={ring} value={l.phone} inputMode="tel" onChange={(e) => update({ phone: e.target.value })} /></Field>
             <Field label="Telegram"><input className={field} style={ring} value={l.tg} placeholder="@username" onChange={(e) => update({ tg: e.target.value })} /></Field>
+            <Field label="Instagram"><input className={field} style={ring} value={l.ig ?? ''} placeholder="@username" onChange={(e) => update({ ig: e.target.value })} /></Field>
             <Field label="Где нашли"><SourceSelect value={l.source} onChange={(v) => update({ source: v })} /></Field>
             <Field label="Ссылка на карточку" className="sm:col-span-2 lg:col-span-3"><input className={field} style={ring} value={l.card} inputMode="url" onChange={(e) => update({ card: e.target.value })} /></Field>
             <Field label="Заметка" className="sm:col-span-2 lg:col-span-3">
