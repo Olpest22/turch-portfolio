@@ -4,6 +4,7 @@ import '../index.css';
 import '@/shared/kit/interaction-kit.js';
 import { NICHES } from '@/lib/niches';
 import { CopyBtn, copyText } from './ui';
+import { STAGE_LABEL, TARIFFS, pitchUrl, stages, type Tariff } from '@/lib/stages';
 import Radar, { freshCount, useRadar } from './Radar';
 import { forgetKey, open as openBlob, recallKey, rememberKey, seal, unlock } from './vault';
 import {
@@ -38,6 +39,17 @@ type Lead = {
   lastAt: number;
   created: number;
   log: { t: number; s: string }[];
+  /* deal, after the lead answered (ops/business/uslugi-i-roadmap.md) */
+  /** how many of the 10 deal steps are done */
+  stage?: number;
+  tariff?: Tariff;
+  /** pitches/<slug> or a link to the first screen */
+  pitch?: string;
+  /** address of the finished site */
+  site?: string;
+  launchedAt?: number;
+  /** the «2 weeks later» message was sent */
+  followed?: boolean;
 };
 
 const PLAIN_KEY = 'turch-leads-v1'; // before the password: migrated on first unlock, then removed
@@ -93,14 +105,21 @@ const sourceFromUrl = (u: string): Source | '' => (/2gis/i.test(u) ? '2gis' : /y
 
 /** When the next message is due (ms), or null when nothing is left to send. */
 function dueAt(l: Lead): number | null {
-  if (l.status === 'reply' || l.status === 'deal' || l.status === 'no') return null;
+  if (l.status === 'deal' && l.launchedAt && !l.followed) return startOfDay(l.launchedAt) + 14 * DAY;
+  // answered, or a deal in progress before launch: keep them on top of «На сегодня»
+  if (l.status === 'reply' || (l.status === 'deal' && !l.launchedAt)) return 0;
+  if (l.status === 'deal' || l.status === 'no') return null;
   if (l.step === 0) return l.created;
   if (l.step >= 3) return null;
   return startOfDay(l.lastAt) + WAIT[l.step - 1] * DAY;
 }
 function nextLabel(l: Lead): string {
-  if (l.status === 'reply') return 'Ответил: ответьте ему';
-  if (l.status === 'deal') return 'Сделка';
+  if (l.status === 'reply') return `Ответил: ${STAGE_LABEL[Math.min(l.stage ?? 0, 9)].toLowerCase()}`;
+  if (l.status === 'deal' && l.launchedAt && !l.followed) {
+    const days = Math.round((startOfDay(l.launchedAt) + 14 * DAY - startOfDay()) / DAY);
+    return days <= 0 ? 'Спросить про заявки и отзыв: сегодня' : `Спросить про заявки: через ${days} дн.`;
+  }
+  if (l.status === 'deal') return l.followed ? 'Сделка закрыта' : `Сделка: ${STAGE_LABEL[Math.min(l.stage ?? 0, 9)].toLowerCase()}`;
   if (l.status === 'no') return 'Закрыт';
   if (l.step >= 3) return 'Не ответил на 3 сообщения: можно закрыть';
   const d = dueAt(l)!;
@@ -398,6 +417,64 @@ function AddPanel({ onAdd }: { onAdd: (ls: Lead[]) => number }) {
   );
 }
 
+/* ─── deal steps after the lead answered ─── */
+function DealPanel({ l, update, via }: { l: Lead; update: (p: Partial<Lead>, log?: string) => void; via?: Via }) {
+  const done = l.stage ?? 0;
+  const [sel, setSel] = useState(Math.min(done, 9));
+  useEffect(() => setSel(Math.min(done, 9)), [done]);
+  const texts = stages(l);
+  const text = texts[sel];
+  const tgu = tgUrl(l.tg, l.phone);
+  const open = via === 'whatsapp' ? waUrl(l.phone, text) : via === 'telegram' ? tgu : via === 'instagram' ? igUrl(l.ig) : '';
+  const markDone = () => {
+    const next = Math.max(done, sel + 1);
+    const p: Partial<Lead> = { stage: next };
+    if (sel === 3) p.status = 'deal'; // brief agreed and prepaid
+    if (sel === 7) { p.launchedAt = Date.now(); p.status = 'deal'; }
+    if (sel === 9) p.followed = true;
+    update(p, `stage${sel + 1}`);
+  };
+  return (
+    <div className="rounded-[14px] p-4" style={{ boxShadow: 'inset 0 0 0 1px rgb(255 107 26 / .35)', background: 'rgb(255 107 26 / .04)' }}>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <span className="text-[15px] font-semibold">Сделка: шаг {sel + 1} из 10</span>
+        <span className="text-[14px] text-tx-3">Выполнено: {done}</span>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5" role="tablist" aria-label="Этап сделки">
+        {STAGE_LABEL.map((t, i) => (
+          <button key={t} type="button" role="tab" aria-selected={sel === i}
+            className={`ui-press ui-focus h-[32px] rounded-full px-3 text-[13px] ${sel === i ? 'bg-tx text-bg' : i < done ? 'text-[#9be3b4]' : 'text-tx-2'}`}
+            style={sel === i ? undefined : ring} onClick={() => setSel(i)}>
+            {i < done ? '✓ ' : `${i + 1}. `}{t}
+          </button>
+        ))}
+      </div>
+      <p className="mb-0 mt-3 whitespace-pre-wrap rounded-[12px] bg-bg p-4 text-[15px] leading-relaxed [overflow-wrap:anywhere]" style={ring}>{text}</p>
+      <div className="mt-3 flex flex-wrap gap-2.5">
+        {open && (
+          <a className="btn btn-a ui-press ui-focus h-[44px] px-4 text-[15px]" href={open} target="_blank" rel="noopener" onClick={() => { if (via !== 'whatsapp') void copyText(text); }}>
+            {via === 'whatsapp' ? 'Открыть в WhatsApp' : `Открыть ${VIA_LABEL[via!]} (текст скопирован)`}
+          </a>
+        )}
+        <CopyBtn text={text} label="Скопировать" primary={!open} />
+        {pitchUrl(l.pitch) && <a className="btn btn-b ui-press ui-press--on-dark ui-focus h-[44px] px-4 text-[15px]" href={pitchUrl(l.pitch)} target="_blank" rel="noopener">Первый экран ↗</a>}
+        <button type="button" className="btn btn-b ui-press ui-press--on-dark ui-focus h-[44px] px-4 text-[15px]" onClick={markDone}>
+          {sel < done ? 'Выполнено ✓' : 'Шаг выполнен ✓'}
+        </button>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <Field label="Тариф">
+          <select className={field} style={ring} value={l.tariff ?? 'calc'} onChange={(e) => update({ tariff: e.target.value as Tariff })}>
+            {(Object.keys(TARIFFS) as Tariff[]).map((k) => <option key={k} value={k}>{TARIFFS[k].label}, {TARIFFS[k].price.toLocaleString('ru-RU')} ₽</option>)}
+          </select>
+        </Field>
+        <Field label="Первый экран"><input className={field} style={ring} value={l.pitch ?? ''} placeholder="promboklet или ссылка" onChange={(e) => update({ pitch: e.target.value.trim() })} /></Field>
+        <Field label="Адрес готового сайта"><input className={field} style={ring} value={l.site ?? ''} placeholder="https://…" onChange={(e) => update({ site: e.target.value.trim() })} /></Field>
+      </div>
+    </div>
+  );
+}
+
 /* ─── one lead ─── */
 function LeadCard({ l, open, onToggle, update, remove, onSent }: {
   l: Lead; open: boolean; onToggle: () => void; update: (p: Partial<Lead>, log?: string) => void; remove: () => void; onSent: () => void;
@@ -526,6 +603,8 @@ function LeadCard({ l, open, onToggle, update, remove, onSent }: {
             ))}
           </div>
 
+          {(l.status === 'reply' || l.status === 'deal') && <DealPanel l={l} update={update} via={via} />}
+
           <div>
             <div className="text-[14px] text-tx-3">Если ответил</div>
             <ul className="m-0 mt-2 grid list-none gap-2 p-0">
@@ -650,7 +729,7 @@ function App({ vaultKey, initial, notice, onLock }: { vaultKey: CryptoKey; initi
     if (q) ls = ls.filter((l) => `${l.name} ${l.city} ${l.phone} ${l.note}`.toLowerCase().includes(q));
     if (tab === 'today') {
       // follow-ups first (they go stale), then new leads in the order they were added
-      ls = [...ls].sort((a, b) => (b.step > 0 ? 1 : 0) - (a.step > 0 ? 1 : 0) || (dueAt(a)! - dueAt(b)!) || a.created - b.created);
+      ls = [...ls].sort((a, b) => (dueAt(a) === 0 ? 0 : 1) - (dueAt(b) === 0 ? 0 : 1) || (b.step > 0 ? 1 : 0) - (a.step > 0 ? 1 : 0) || (dueAt(a)! - dueAt(b)!) || a.created - b.created);
     } else if (tab === 'wait') {
       ls = [...ls].sort((a, b) => (dueAt(a) ?? Infinity) - (dueAt(b) ?? Infinity));
     }
@@ -850,7 +929,7 @@ function Guide() {
     ['Добавляйте', 'Выгрузку GisFind (CSV или Excel) загрузите кнопкой «Загрузить CSV / Excel»: ниша определится по рубрике, компании с сайтом пропустятся. Можно и вставить списком.'],
     ['Пишите', 'Откройте лида, нажмите WhatsApp: сообщение уже вставлено, там персональная ссылка с его названием. Отправьте и нажмите «Отправил».'],
     ['Напоминайте', 'Через 2 и 5 дней лид снова появится в «На сегодня» с готовым напоминанием. После третьего сообщения без ответа закройте его.'],
-    ['Отвечайте', 'Когда ответят, отметьте «Ответил» и возьмите готовый ответ на возражение. Цель первого разговора: получить 3–5 фото и сделать бесплатный первый экран.'],
+    ['Ведите сделку', 'Когда ответят, отметьте «Ответил»: появятся 10 шагов сделки с готовыми сообщениями, от знакомства до отзыва. Отмечайте «Шаг выполнен», через 2 недели после запуска трекер напомнит спросить про заявки.'],
   ];
   return (
     <section className="mt-16 border-t border-[var(--line)] pt-10" aria-labelledby="guide-title">
