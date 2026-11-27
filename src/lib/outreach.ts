@@ -8,12 +8,13 @@ import { contactLine, type Channel } from './contact';
 export type Source = '2gis' | 'yandex';
 export const SOURCES: Record<Source, string> = { '2gis': 'в 2ГИС', yandex: 'на Яндекс Картах' };
 
-export type Group = 'remont' | 'mebel' | 'vyveski' | 'kuzov';
+export type Group = 'remont' | 'mebel' | 'vyveski' | 'kuzov' | 'tipografiya';
 export const groupOf = (n: string): Group => {
   const d = NICHES[n]?.demo ?? 'remont';
   if (d === 'kuhni' || d === 'mebel') return 'mebel';
   if (d === 'vyveski') return 'vyveski';
   if (d === 'kuzov') return 'kuzov';
+  if (d === 'tipografiya') return 'tipografiya';
   return 'remont';
 };
 
@@ -22,6 +23,7 @@ const WHY: Record<Group, string> = {
   remont: 'Человек, который ищет ремонт или потолки, хочет до звонка понять примерную цену. Калькулятор на сайте даёт ему это, а вам приходит заявка уже с площадью и телефоном.',
   mebel: 'Кухню и мебель выбирают долго и сравнивают несколько мастерских. Конструктор с ценой помогает клиенту остановиться на вас, а заявка приходит уже с размерами.',
   vyveski: 'Клиенту проще решиться, когда он видит своё название на вывеске и цену сразу, без переписки. Заявка приходит уже с текстом и размером.',
+  tipografiya: 'Визитки, буклеты и пакеты заказывают там, где сразу понятны цена и срок. Калькулятор тиража отвечает на это без звонка, а заявка приходит уже с макетом.',
   kuzov: 'Владелец машины хочет до приезда понять, сколько будет стоить ремонт. Схема с ценой и загрузка фото дают вам заявки, где повреждения уже видно.',
 };
 
@@ -31,6 +33,7 @@ const ORDER: Record<Group, string> = {
   mebel: 'одна кухня или шкаф',
   vyveski: 'одна вывеска',
   kuzov: 'один-два ремонта',
+  tipografiya: 'пара тиражей для постоянного клиента',
 };
 
 export type LeadLike = { niche: string; name: string; city: string; source: Source };

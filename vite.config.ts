@@ -22,6 +22,7 @@ export default defineConfig({
         vyveski: r('./vyveski/index.html'),
         kuzov: r('./kuzov/index.html'),
         kuhni: r('./kuhni/index.html'),
+        tipografiya: r('./tipografiya/index.html'),
       },
     },
   },

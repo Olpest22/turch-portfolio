@@ -46,18 +46,20 @@ NICHES = [
     ("potolki", rx(r"потол")),
     ("kuhni", rx(r"кухн")),
     ("mebel", rx(r"мебел|шкаф|гардероб")),
+    ("tipografiya", rx(r"типограф|полиграф|печать визиток|буклет")),
     ("vyveski", rx(r"вывеск|наружн\w* реклам|неон")),
     ("kuzov", rx(r"кузов|покраск|автосервис|\bсто\b|авторемонт|детейлинг")),
     ("doma", rx(r"строительн|строим дома|домов|каркасн|сруб")),
     ("remont", rx(r"ремонт\w* квартир|отделк|ремонтн\w* бригад|ремонт под ключ")),
 ]
-DEMO = {"potolki": "potolki", "kuhni": "kuhni", "mebel": "mebel", "vyveski": "vyveski", "kuzov": "kuzov", "doma": "remont", "remont": "remont"}
+DEMO = {"tipografiya": "tipografiya", "potolki": "potolki", "kuhni": "kuhni", "mebel": "mebel", "vyveski": "vyveski", "kuzov": "kuzov", "doma": "remont", "remont": "remont"}
 DEMO_TEXT = {
     "remont": "вот пример с калькулятором сметы",
     "potolki": "вот пример с 3D-примеркой потолка и ценой",
     "kuhni": "вот пример с конструктором кухни",
     "mebel": "вот пример с конструктором шкафа",
     "vyveski": "вот пример: пишешь название, и вывеска загорается на фасаде",
+    "tipografiya": "вот пример с калькулятором тиража и загрузкой макета",
     "kuzov": "вот пример для кузовного: нажимаешь на деталь машины и видишь цену",
 }
 PORTFOLIO = "https://olpest22.github.io/turch-portfolio/"

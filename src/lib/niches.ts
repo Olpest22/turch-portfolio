@@ -1,5 +1,5 @@
 /** Niches the portfolio supports in personalised links (?n=…), shared by the home page, /link/ and /leads/. */
-export type Demo = 'remont' | 'potolki' | 'mebel' | 'kuhni' | 'vyveski' | 'kuzov';
+export type Demo = 'remont' | 'potolki' | 'mebel' | 'kuhni' | 'vyveski' | 'kuzov' | 'tipografiya';
 
 export const NICHES: Record<string, { label: string; demo: Demo; hook: string }> = {
   remont: { label: 'Ремонт квартир', demo: 'remont', hook: 'Там калькулятор сметы: клиент сам считает стоимость ремонта и оставляет заявку.' },
@@ -9,5 +9,6 @@ export const NICHES: Record<string, { label: string; demo: Demo; hook: string }>
   mebel: { label: 'Мебель на заказ', demo: 'mebel', hook: 'Там конструктор шкафа: клиент выбирает размер и фасады и сразу видит цену.' },
   vyveski: { label: 'Изготовление вывесок', demo: 'vyveski', hook: 'Там конструктор: клиент пишет текст вывески, видит, как она горит, и сразу цену.' },
   reklama: { label: 'Наружная реклама', demo: 'vyveski', hook: 'Там конструктор: клиент пишет текст вывески, видит, как она горит, и сразу цену.' },
+  tipografiya: { label: 'Типография, полиграфия', demo: 'tipografiya', hook: 'Там калькулятор тиража: клиент выбирает визитки, буклеты или пакеты, бумагу и тираж и сразу видит цену и дату готовности, а макет загружает прямо на сайте.' },
   kuzov: { label: 'Кузовной ремонт авто', demo: 'kuzov', hook: 'Там схема машины: клиент нажимает на повреждённую деталь и видит цену, может прислать фото.' },
 };

@@ -31,6 +31,7 @@ const DEMOS: Record<Demo, { title: string; niche: string; points: string[] }> = 
   mebel: { title: 'Мебель на заказ', niche: 'mebel', points: ['Лента работ, которую можно листать пальцем', 'Конфигуратор шкафа с ценой', 'Комнаты: гардеробные, кухни, гостиные', 'Запись в шоурум в один клик'] },
   kuhni: { title: 'Кухни на заказ', niche: 'kuhni', points: ['Конструктор кухни: планировка, фасады, столешница', 'Кухня рисуется вживую, цена считается сразу', 'Стили и фото готовых кухонь', 'Запись на замер в один клик'] },
   vyveski: { title: 'Вывески и реклама', niche: 'vyveski', points: ['Название клиента горит неоном на первом экране', 'Конструктор вывески: текст, тип, цвет, размер', 'Цена с монтажом сразу', 'Заявка на визуализацию в один клик'] },
+  tipografiya: { title: 'Типография', niche: 'tipografiya', points: ['Название клиента напечатано на визитках, пакетах и каталоге', 'Калькулятор тиража: продукция, бумага, отделка, тираж', 'Цена и дата готовности сразу', 'Загрузка макета прямо в заявке'] },
   kuzov: { title: 'Кузовной ремонт', niche: 'kuzov', points: ['Схема машины: нажмите на деталь — увидите цену', 'Оценка по фото с загрузкой снимков', 'Услуги цеха с ценами', 'Заявка сразу с фото'] },
 };
 const demoUrl = (d: Demo, embed = false) => {
@@ -309,7 +310,7 @@ function Hero() {
             {LEAD.city ? ` · ${LEAD.city}` : ''}
           </div>
         )}
-        <h1 id="hero-title" className={`h1 m-0 ${named ? 'text-[clamp(32px,3.4vw,50px)]' : ''}`}>
+        <h1 id="hero-title" className="h1 m-0 [overflow-wrap:anywhere]" style={named ? { fontSize: LEAD.name.length > 14 ? 'clamp(28px, 3vw, 42px)' : LEAD.name.length > 8 ? 'clamp(30px, 3.4vw, 50px)' : 'clamp(34px, 4.2vw, 62px)' } : undefined}>
           {named ? (
             <>
               {quoted}, вот каким может быть <span className="text-accent">ваш сайт</span>
@@ -366,7 +367,7 @@ function Why() {
 }
 
 function Examples() {
-  const order: Demo[] = [NICHE.demo, ...(['remont', 'potolki', 'kuhni', 'mebel', 'vyveski', 'kuzov'] as Demo[]).filter((d) => d !== NICHE.demo)];
+  const order: Demo[] = [NICHE.demo, ...(['remont', 'potolki', 'kuhni', 'mebel', 'vyveski', 'tipografiya', 'kuzov'] as Demo[]).filter((d) => d !== NICHE.demo)];
   const [tab, setTab] = useState<Demo>(order[0]);
   const d = DEMOS[tab];
   return (
