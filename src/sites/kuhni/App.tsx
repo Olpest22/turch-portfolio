@@ -1,13 +1,15 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { DemoBadge, fakeSubmit, formatPhone, rub, type LeadState } from '@/shared/DemoBadge';
-import { brandOr, cityOr, EMBED } from '@/shared/brand';
+import { brandOr, cityOr, EMBED, imgOr, phoneOr, telOf } from '@/shared/brand';
+import { PitchLogo } from '@/shared/PitchLogo';
 import { BASE } from '@/lib/base';
 
 const BRAND = brandOr('Ольха');
 const CITY = cityOr('Москва и область');
-const IMG = (n: string) => `${BASE}img/kuhni/${n}.webp`;
-const MD = (n: string) => `${BASE}img/kuhni/${n}-md.webp`;
-const PHONE = '+7 (900) 000-00-00';
+const IMG = (n: string) => imgOr(n, `${BASE}img/kuhni/${n}.webp`);
+const MD = (n: string) => imgOr(n, `${BASE}img/kuhni/${n}-md.webp`);
+const PHONE = phoneOr('+7 (900) 000-00-00');
+const TEL = telOf(PHONE);
 
 /* ───────────── constructor data ───────────── */
 type Layout = 'line' | 'corner' | 'u' | 'island';
@@ -241,7 +243,7 @@ function Hero() {
     <section className="relative" aria-label="Главный экран">
       <header className="wrap flex h-[76px] items-center justify-between gap-4">
         <a href="#" className="ui-dim ui-focus flex min-w-0 items-center gap-2.5 text-ink no-underline" aria-label={`${BRAND}, наверх`}>
-          <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="16" fill="#56603b" /><path d="M16 7c5 4 5 13 0 18-5-5-5-14 0-18z" fill="#efe9df" /></svg>
+          <PitchLogo><svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="16" fill="var(--olive)" /><path d="M16 7c5 4 5 13 0 18-5-5-5-14 0-18z" fill="#efe9df" /></svg></PitchLogo>
           <span className="truncate font-serif text-[22px] font-semibold">{BRAND}</span>
         </a>
         <nav className="hidden items-center gap-7 text-[15px] text-ink-2 md:flex" aria-label="Разделы">
@@ -431,7 +433,7 @@ function Footer() {
     <footer className="border-t border-[var(--line)] py-10 pb-24 text-[14px] text-ink-3">
       <div className="wrap flex flex-col gap-2 md:flex-row md:justify-between">
         <span><span className="font-serif font-semibold text-ink">{BRAND}</span> · кухни на заказ · {CITY}</span>
-        <a href="tel:+79000000000" className="ui-dim ui-focus text-ink no-underline">{PHONE}</a>
+        <a href={TEL} className="ui-dim ui-focus text-ink no-underline">{PHONE}</a>
       </div>
     </footer>
   );

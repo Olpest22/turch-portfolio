@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent, type KeyboardEvent } from 'react';
 import { DemoBadge, fakeSubmit, formatPhone, rub, type LeadState } from '@/shared/DemoBadge';
-import { brandOr, cityOr, EMBED } from '@/shared/brand';
+import { brandOr, cityOr, EMBED, imgOr, phoneOr, telOf } from '@/shared/brand';
+import { PitchLogo } from '@/shared/PitchLogo';
 import { BASE } from '@/lib/base';
 
 const BRAND = brandOr('ПАНЕЛЬ');
 const CITY = cityOr('Москва и область');
-const IMG = (n: string) => `${BASE}img/kuzov/${n}.webp`;
-const MD = (n: string) => `${BASE}img/kuzov/${n}-md.webp`;
-const PHONE = '+7 (900) 000-00-00';
+const IMG = (n: string) => imgOr(n, `${BASE}img/kuzov/${n}.webp`);
+const MD = (n: string) => imgOr(n, `${BASE}img/kuzov/${n}-md.webp`);
+const PHONE = phoneOr('+7 (900) 000-00-00');
+const TEL = telOf(PHONE);
 
 /* ───────────── damage calculator data ───────────── */
 type Damage = 'scratch' | 'pdr' | 'dent' | 'replace';
@@ -260,7 +262,7 @@ function Hero() {
       <header className="relative z-10">
         <div className="wrap flex h-[76px] items-center justify-between gap-4">
           <a href="#" className="ui-dim ui-focus flex min-w-0 items-center gap-3 text-tx no-underline" aria-label={`${BRAND}, наверх`}>
-            <svg width="28" height="30" viewBox="0 0 28 30" aria-hidden="true"><path d="M14 2l11 6.3v13.4L14 28 3 21.7V8.3z" fill="none" stroke="#f5c400" strokeWidth="2.6" /></svg>
+            <PitchLogo chip><svg width="28" height="30" viewBox="0 0 28 30" aria-hidden="true"><path d="M14 2l11 6.3v13.4L14 28 3 21.7V8.3z" fill="none" stroke="var(--y)" strokeWidth="2.6" /></svg></PitchLogo>
             <span className="disp truncate text-[22px]">{BRAND}</span>
           </a>
           <nav className="hidden items-center gap-7 text-[15px] text-tx-2 md:flex" aria-label="Разделы">
@@ -269,7 +271,7 @@ function Hero() {
             <a className="ui-dim ui-focus text-inherit no-underline hover:text-tx" href="#photo">Оценка по фото</a>
             <a className="ui-dim ui-focus text-inherit no-underline hover:text-tx" href="#faq">Вопросы</a>
           </nav>
-          <a href="tel:+79000000000" className="btn btn-y ui-press ui-focus" style={{ height: 44, padding: '0 16px', fontSize: 15 }}>Позвонить</a>
+          <a href={TEL} className="btn btn-y ui-press ui-focus" style={{ height: 44, padding: '0 16px', fontSize: 15 }}>Позвонить</a>
         </div>
       </header>
       <div className="wrap relative z-10 mt-auto pb-12 pt-24">
@@ -385,7 +387,7 @@ function Footer() {
     <footer className="border-t border-[var(--line)] py-10 pb-24 text-[14px] text-tx-3">
       <div className="wrap flex flex-col gap-2 md:flex-row md:justify-between">
         <span><span className="disp text-tx">{BRAND}</span> · кузовной ремонт · {CITY} · ежедневно 9:00–21:00</span>
-        <a href="tel:+79000000000" className="ui-dim ui-focus text-tx no-underline">{PHONE}</a>
+        <a href={TEL} className="ui-dim ui-focus text-tx no-underline">{PHONE}</a>
       </div>
     </footer>
   );

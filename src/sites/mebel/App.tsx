@@ -2,15 +2,17 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEven
 import Masonry from '@/shared/rb/Masonry';
 import Magnet from '@/shared/rb/Magnet';
 import { DemoBadge, fakeSubmit, formatPhone, rub, type LeadState } from '@/shared/DemoBadge';
-import { brandOr, cityOr, EMBED } from '@/shared/brand';
+import { brandOr, cityOr, EMBED, imgOr, phoneOr, telOf } from '@/shared/brand';
+import { PitchLogo } from '@/shared/PitchLogo';
 import { BASE } from '@/lib/base';
 
 const BRAND = brandOr('Форма и шпон');
 const CITY = cityOr('Москва и область');
 
-const IMG = (n: string) => `${BASE}img/mebel/${n}.webp`;
-const MD = (n: string) => `${BASE}img/mebel/${n}-md.webp`;
-const PHONE = '+7 (900) 000-00-00';
+const IMG = (n: string) => imgOr(n, `${BASE}img/mebel/${n}.webp`);
+const MD = (n: string) => imgOr(n, `${BASE}img/mebel/${n}-md.webp`);
+const PHONE = phoneOr('+7 (900) 000-00-00');
+const TEL = telOf(PHONE);
 
 function Logo({ size = 28 }: { size?: number }) {
   return (
@@ -44,7 +46,7 @@ function Nav() {
     <>
       <nav className="fixed inset-x-0 top-0 z-50 flex items-center justify-between bg-white/95 px-4 py-4 sm:px-6 sm:py-5 md:px-10" aria-label="Главное меню">
         <a href="#" className="ui-dim ui-focus flex items-center gap-2.5 text-[16px] font-semibold tracking-[-0.02em] text-ink no-underline" aria-label={`${BRAND}, наверх`}>
-          <Logo />
+          <PitchLogo><Logo /></PitchLogo>
           <span className="block max-w-[34vw] truncate sm:max-w-none">{BRAND}</span>
         </a>
         <button type="button" aria-label="Открыть меню" aria-expanded={open} onClick={() => setOpen(true)} className="group ui-press ui-focus absolute left-1/2 flex h-10 w-10 -translate-x-1/2 flex-col items-center justify-center gap-[5px] rounded-full">
@@ -529,7 +531,7 @@ function Footer() {
       <div className="wrap flex flex-col gap-4 text-[14px] text-ink-2 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2.5 text-ink"><Logo size={22} /><span className="font-semibold">{BRAND}</span></div>
         <div>Мебель на заказ · {CITY}</div>
-        <a href="tel:+79000000000" className="ui-dim ui-focus text-ink no-underline">{PHONE}</a>
+        <a href={TEL} className="ui-dim ui-focus text-ink no-underline">{PHONE}</a>
       </div>
     </footer>
   );

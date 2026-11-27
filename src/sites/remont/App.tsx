@@ -3,15 +3,17 @@ import CountUp from '@/shared/rb/CountUp';
 import FlowingMenu from '@/shared/rb/FlowingMenu';
 import BlurText from '@/shared/rb/BlurText';
 import { DemoBadge, fakeSubmit, formatPhone, rub, type LeadState } from '@/shared/DemoBadge';
-import { brandOr, cityOr, EMBED } from '@/shared/brand';
+import { brandOr, cityOr, EMBED, imgOr, phoneOr, telOf } from '@/shared/brand';
+import { PitchLogo } from '@/shared/PitchLogo';
 import { BASE } from '@/lib/base';
 
 const BRAND = brandOr('КЛЮЧ');
 const CITY = cityOr('Москва и область');
 
-const PHONE = '+7 (900) 000-00-00';
-const IMG = (n: string) => `${BASE}img/remont/${n}.webp`;
-const MD = (n: string) => `${BASE}img/remont/${n}-md.webp`;
+const PHONE = phoneOr('+7 (900) 000-00-00');
+const TEL = telOf(PHONE);
+const IMG = (n: string) => imgOr(n, `${BASE}img/remont/${n}.webp`);
+const MD = (n: string) => imgOr(n, `${BASE}img/remont/${n}-md.webp`);
 
 /* ───────────────────────── decode label (Monolith) ───────────────────────── */
 const GLYPHS = 'АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЭЮЯ0123456789/+';
@@ -120,10 +122,12 @@ function Hero() {
         <div className="flex items-center justify-between gap-4 px-6 pt-6 md:px-14 md:pt-12">
           <a href="#" className="ui-dim ui-focus anim-mask flex items-center gap-3 text-tx no-underline" aria-label={`${BRAND}, наверх`}>
             <span className="flex items-center gap-3" style={{ animationDelay: '160ms' }}>
+              <PitchLogo chip>
               <svg width="30" height="20" viewBox="0 0 30 20" aria-hidden="true">
                 <circle cx="9" cy="10" r="6.5" fill="none" stroke="currentColor" strokeWidth="2.4" />
                 <path d="M15.5 10H28v6M22.5 10v4" fill="none" stroke="currentColor" strokeWidth="2.4" />
               </svg>
+              </PitchLogo>
               <span className="block max-w-[46vw] truncate font-head text-[19px] font-bold uppercase tracking-[0.22em]">{BRAND}</span>
             </span>
           </a>
@@ -214,7 +218,7 @@ function Hero() {
           <a href="#services" className="lbl ui-dim ui-focus anim-settle justify-self-center text-[#e3e8f2] no-underline" style={{ animationDelay: '1020ms' }}>
             Листайте ↓
           </a>
-          <a href="tel:+79000000000" className="lbl ui-dim ui-focus anim-settle justify-self-end text-[#e3e8f2] no-underline" style={{ animationDelay: '1080ms' }}>
+          <a href={TEL} className="lbl ui-dim ui-focus anim-settle justify-self-end text-[#e3e8f2] no-underline" style={{ animationDelay: '1080ms' }}>
             <span className="hidden sm:inline">{PHONE}</span>
             <span className="sm:hidden">Позвонить</span>
           </a>
@@ -632,7 +636,7 @@ function Footer() {
           <span className="lbl text-tx-3">Ремонт квартир · {CITY}</span>
         </div>
         <div className="lbl flex flex-wrap gap-6 text-tx-2">
-          <a className="ui-dim ui-focus text-inherit no-underline" href="tel:+79000000000">{PHONE}</a>
+          <a className="ui-dim ui-focus text-inherit no-underline" href={TEL}>{PHONE}</a>
           <span>Ежедневно 9:00–21:00</span>
         </div>
       </div>

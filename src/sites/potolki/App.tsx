@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { DemoBadge, fakeSubmit, formatPhone, rub, type LeadState } from '@/shared/DemoBadge';
-import { brandOr, cityOr, EMBED } from '@/shared/brand';
+import { brandOr, cityOr, EMBED, imgOr, phoneOr, telOf } from '@/shared/brand';
+import { PitchLogo } from '@/shared/PitchLogo';
 
 const BRAND = brandOr('Глянец');
 const CITY = cityOr('Москва и область');
@@ -9,10 +10,11 @@ import ShinyText from '@/shared/rb/ShinyText';
 import { BASE } from '@/lib/base';
 
 const Room3D = lazy(() => import('./Room3D'));
-const IMG = (n: string) => `${BASE}img/potolki/${n}.webp`;
-const MD = (n: string) => `${BASE}img/potolki/${n}-md.webp`;
+const IMG = (n: string) => imgOr(n, `${BASE}img/potolki/${n}.webp`);
+const MD = (n: string) => imgOr(n, `${BASE}img/potolki/${n}-md.webp`);
 const VIDEO = `${BASE}video/surface.mp4`;
-const PHONE = '+7 (900) 000-00-00';
+const PHONE = phoneOr('+7 (900) 000-00-00');
+const TEL = telOf(PHONE);
 
 /* ───────────── scroll-scrubbed surface hero (Cast & Render) ───────────── */
 const CUES: [number, number, number, number][] = [
@@ -245,7 +247,7 @@ function Header() {
     <header className="fixed inset-x-0 top-0 z-40" style={{ background: 'linear-gradient(to bottom, rgba(242,240,236,.94) 0%, rgba(242,240,236,.78) 72%, rgba(242,240,236,0) 100%)' }}>
       <div className="flex items-center justify-between gap-3 px-[clamp(16px,3.4vw,44px)] pb-4 pt-[max(14px,calc(env(safe-area-inset-top,0px)+12px))]">
         <a href="#" className="ui-dim ui-focus flex items-center gap-2.5 text-[17px] tracking-[-0.012em] text-fg no-underline">
-          <span aria-hidden="true" className="opacity-85">✵</span>{BRAND}
+          <PitchLogo size={26}><span aria-hidden="true" className="opacity-85">✵</span></PitchLogo>{BRAND}
         </a>
         <nav className="flex items-center gap-[clamp(14px,2.4vw,32px)]" aria-label="Разделы">
           {[
@@ -538,7 +540,7 @@ function Footer() {
     <footer className="py-10 pb-24 text-[13px] text-fg-faint">
       <div className="wrap flex flex-col gap-3 md:flex-row md:justify-between">
         <span><span className="text-fg">✵ {BRAND}</span> · натяжные потолки · {CITY}</span>
-        <span><a className="ui-dim ui-focus text-fg no-underline" href="tel:+79000000000">{PHONE}</a> · ежедневно 9:00–21:00</span>
+        <span><a className="ui-dim ui-focus text-fg no-underline" href={TEL}>{PHONE}</a> · ежедневно 9:00–21:00</span>
       </div>
     </footer>
   );

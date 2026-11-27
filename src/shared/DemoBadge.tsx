@@ -1,11 +1,18 @@
 import { BASE } from '@/lib/base';
-/** Floating label that marks a demo site and links back to the TURCH portfolio. */
+import { CH, CHANNELS } from '@/lib/contact';
+import { PITCH, PRICE_K } from './brand';
+/** Floating label that marks a demo site and links back to the TURCH portfolio.
+    On a pitch page it says whose first screen this is and opens a chat with TURCH instead. */
 export function DemoBadge({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
   const dark = tone === 'dark';
+  const ch = CHANNELS[0];
+  const href = PITCH && ch ? CH[ch].url(`Здравствуйте! Посмотрел первый экран для «${PITCH.brand}».`) : `${BASE}#examples`;
   return (
     <a
-      href={`${BASE}#examples`}
-      className="ui-press ui-focus fixed bottom-4 left-4 z-[80] inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-[13px] font-medium no-underline shadow-lg"
+      href={href}
+      target={PITCH ? '_blank' : undefined}
+      rel={PITCH ? 'noopener' : undefined}
+      className="ui-press ui-focus fixed bottom-4 left-4 z-[80] inline-flex max-w-[calc(100vw-32px)] items-center gap-2 rounded-full px-4 py-2.5 text-[13px] font-medium no-underline shadow-lg"
       style={{
         background: dark ? 'rgb(10 9 8 / 0.94)' : 'rgb(255 255 255 / 0.97)',
         color: dark ? '#ede9e3' : '#0d0c0b',
@@ -13,8 +20,8 @@ export function DemoBadge({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
         fontFamily: "'Onest', system-ui, sans-serif",
       }}
     >
-      <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 2, background: '#ff6b1a', display: 'inline-block' }} />
-      Демо-сайт · сделано в TURCH
+      <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 2, background: '#ff6b1a', display: 'inline-block', flex: 'none' }} />
+      <span className="truncate">{PITCH ? `Первый экран для «${PITCH.brand}» · TURCH` : 'Демо-сайт · сделано в TURCH'}</span>
     </a>
   );
 }
@@ -39,4 +46,5 @@ export function formatPhone(v: string) {
   return out;
 }
 
-export const rub = (n: number) => new Intl.NumberFormat('ru-RU').format(Math.round(n)) + ' ₽';
+/** Money as shown on the demos; on a pitch page scaled to the lead's price level (pitch.json priceK). */
+export const rub = (n: number) => new Intl.NumberFormat('ru-RU').format(Math.round(n * PRICE_K)) + ' ₽';

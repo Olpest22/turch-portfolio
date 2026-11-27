@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { DemoBadge, fakeSubmit, formatPhone, rub, type LeadState } from '@/shared/DemoBadge';
-import { brandOr, cityOr, EMBED } from '@/shared/brand';
+import { brandOr, cityOr, EMBED, LOGO, PRICE_K, phoneOr, telOf } from '@/shared/brand';
 
 const BRAND = brandOr('Оттиск');
 const CITY = cityOr('Москва');
-const PHONE = '+7 (900) 000-00-00';
+const PHONE = phoneOr('+7 (900) 000-00-00');
+const TEL = telOf(PHONE);
 
 /* ───────────── products and prices ─────────────
    price = setup + unit × qty × (qty / q0)^-0.33 × options; numbers are a believable demo, not a quote. */
@@ -59,6 +60,7 @@ const minPrice = (p: P) => price({ ...DEFAULT, p, format: 0, paper: 0, both: fal
 
 /* ───────────── CSS mockups ───────────── */
 function Mark({ size = 18 }: { size?: number }) {
+  if (LOGO) return <img src={LOGO} alt="" aria-hidden="true" className="block w-auto shrink-0 object-contain" style={{ height: size * 1.15, maxWidth: size * 4 }} />;
   return (
     <span className="inline-grid shrink-0 grid-cols-2 gap-[2px]" style={{ width: size, height: size }} aria-hidden="true">
       <i className="block rounded-[1px] bg-c" /><i className="block rounded-[1px] bg-m" />
@@ -75,7 +77,7 @@ function CardMock({ finish = 'none', paper = 0, back = false, className = '', st
       {back ? (
         <div className="flex h-full flex-col justify-between bg-[var(--k)] p-[7%] text-white [container-type:inline-size]">
           <Mark size={22} />
-          <div className="unb text-[5.2cqw] font-semibold leading-tight">{PHONE}<br /><span className="opacity-70">{CITY}</span></div>
+          <div className="unb text-[4.4cqw] font-semibold leading-tight">{PHONE}<br /><span className="opacity-70">{CITY}</span></div>
         </div>
       ) : (
         <div className="flex h-full flex-col justify-between p-[7%] [container-type:inline-size]">
@@ -300,7 +302,7 @@ function Calculator({ c, set }: { c: Calc; set: (p: Partial<Calc>) => void }) {
             <div>
               <div className="lbl">{pr.t}, {r.qty.toLocaleString('ru-RU')} шт</div>
               <div className="unb mt-2 text-[clamp(38px,5vw,58px)] font-bold leading-none tracking-[-0.04em]">{rub(r.total)}</div>
-              <div className="mt-3 text-[15px] text-tx-2">{r.per < 10 ? `${r.per.toFixed(2).replace('.', ',')} ₽` : rub(r.per)} за штуку · готово <b className="text-tx">{r.ready}</b></div>
+              <div className="mt-3 text-[15px] text-tx-2">{r.per * PRICE_K < 10 ? `${(r.per * PRICE_K).toFixed(2).replace('.', ',')} ₽` : rub(r.per)} за штуку · готово <b className="text-tx">{r.ready}</b></div>
             </div>
             <a href="#order" className="btn btn-k ui-press ui-focus">Заказать тираж</a>
           </div>
@@ -509,7 +511,7 @@ function Footer() {
     <footer className="border-t border-[var(--line)] py-10 pb-24 text-[14px] text-tx-3">
       <div className="wrap flex flex-col gap-2 md:flex-row md:justify-between">
         <span><span className="unb font-bold text-tx">{BRAND}</span> · типография · {CITY} · пн–сб 9:00–19:00</span>
-        <a href="tel:+79000000000" className="ui-dim ui-focus font-semibold text-tx no-underline">{PHONE}</a>
+        <a href={TEL} className="ui-dim ui-focus font-semibold text-tx no-underline">{PHONE}</a>
       </div>
     </footer>
   );
